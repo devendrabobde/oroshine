@@ -14,6 +14,9 @@ import os
 
 from pathlib import Path
 from decouple import config
+from dotenv import load_dotenv  # Fixed: 'form' -> 'from'
+
+load_dotenv()  # take environment variables from .env.  
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,13 +26,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-gxc@%s4*n+rv@md$+d#@4s7(1i@_o5g9^t5aiv+t)_0pt32gou'
+# Fixed: Use environment variable instead of hardcoded key
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-gxc@%s4*n+rv@md$+d#@4s7(1i@_o5g9^t5aiv+t)_0pt32gou')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Fixed: Use environment variable with default
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-# ALLOWED_HOSTS = ['localhost' , '127.0.0.1' , '0.0.0.0']
-ALLOWED_HOSTS = ["*"]
+# Fixed: More secure ALLOWED_HOSTS configuration
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
@@ -90,14 +95,15 @@ WSGI_APPLICATION = 'oroshine_app.wsgi.application'
 #     }
 # }
 
+# Fixed: Consistent use of config() function
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get('PG_DB','oroshine'),
-        "USER": os.environ.get('PG_USER','postgres'),
-        "PASSWORD": os.environ.get('PG_PASSWORD','postgres'),
-        "HOST": os.environ.get('PG_HOST','localhost'), # uses the container if set, otherwise it runs locally
-        "PORT": os.environ.get('PG_PORT','5432'),
+        "NAME": config('PG_DB', default='oroshine'),
+        "USER": config('PG_USER', default='postgres'),
+        "PASSWORD": config('PG_PASSWORD', default='postgres'),
+        "HOST": config('PG_HOST', default='localhost'),
+        "PORT": config('PG_PORT', default='5432'),
     }
 }
 
@@ -148,24 +154,19 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email Settings
-
+# Fixed: Consistent use of config() function
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'nikhilchandrkar24@gmail.com'
-EMAIL_HOST_PASSWORD = 'ttgl bkww tjye unhb'
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 
+# API Settings
+# Fixed: Consistent use of config() function
+NOCODEAPI_BASE_URL = config('NOCODEAPI_BASE_URL')
 
-# settings.py
-NOCODEAPI_BASE_URL = ""
-# NOCODEAPI_API_KEY = "YOUR_API_KEY"
-
-
-
-
-
-#  Logging configuration for debugging
+# Logging configuration for debugging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
