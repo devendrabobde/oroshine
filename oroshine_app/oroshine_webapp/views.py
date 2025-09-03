@@ -6,8 +6,10 @@ from django.contrib import messages
 from django.core.mail import send_mail
 from .models import Contact, Appointment
 from .forms import NewUserForm, AppointmentForm
-from .utils import create_nocodeapi_event
+from .utils import create_nocodeapi_event, send_contact_form_emails
 import logging
+from django.utils.timezone import now
+from django.core.validators import validate_email, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -42,25 +44,73 @@ def appointment(request):
     return render(request, 'appointment.html', {'form': form})
 
 def contact(request):
-    if request.method == 'POST':
-        contact = Contact()
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        subject = request.POST.get('subject')
-        message = request.POST.get('message')
-        contact.name = name
-        contact.email = email
-        contact.subject = subject
-        contact.message = message
-        contact.save()
-        subject_to_send = "Welcome to OroShine Dental Care"
-        message_to_send = "Our team will contact you within 24hrs."
-        email_from = "nikhilchandurkar24@gmail.com"
-        recipient_list = email
-        send_mail(subject_to_send, message_to_send, email_from, [recipient_list])
-        messages.success(request, "Thank you for contacting us.")
-        return redirect("/")
-    return render(request, 'contact.html', context={})
+    """
+    Handles the contact form submission, validation, and saves the inquiry.
+    It then delegates the email sending to a separate service.
+    """
+    if request.method == 'GET':
+        return render(request, 'contact.html', {
+            'page_title': 'Contact Us - OroShine Dental Care'
+        })
+
+    try:
+        # Extract and sanitize form data
+        name = request.POST.get('name', '').strip()
+        email = request.POST.get('email', '').strip().lower()
+        subject = request.POST.get('subject', '').strip()
+        message = request.POST.get('message', '').strip()
+
+        # Validation
+        errors = []
+        if not name:
+            errors.append("Name is required")
+        if not email:
+            errors.append("Email is required")
+        else:
+            try:
+                validate_email(email)
+            except ValidationError:
+                errors.append("Invalid email address")
+        if not subject:
+            errors.append("Subject is required")
+        if not message:
+            errors.append("Message is required")
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'contact.html', {
+                'page_title': 'Contact Us - OroShine Dental Care',
+                'name': name,
+                'email': email,
+                'subject': subject,
+                'message': message
+            })
+
+        # Save to database
+        contact_inquiry = Contact.objects.create(
+            name=name,
+            email=email,
+            subject=subject,
+            message=message
+        )
+
+        # Get request-specific metadata
+        user_ip = request.META.get('REMOTE_ADDR', 'Unknown IP')
+        page_origin = request.META.get('HTTP_REFERER', 'Direct Access')
+        timestamp = now().strftime('%B %d, %Y at %I:%M %p %Z')
+
+        # Delegate email sending to a service function
+        send_contact_form_emails(contact_inquiry, user_ip, page_origin, timestamp)
+
+        messages.success(request, " Thank you! We've received your message and will contact you within 24 hours.")
+        return redirect('home')
+
+    except Exception as e:
+        logger.error(f"Contact form error: {str(e)}", exc_info=True)
+        messages.error(request, "Something went wrong. Please try again.")
+        return redirect('contact')
+
 
 def price(request):
     return render(request, 'price.html', context={})

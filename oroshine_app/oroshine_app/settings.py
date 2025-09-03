@@ -166,33 +166,43 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 # Fixed: Consistent use of config() function
 NOCODEAPI_BASE_URL = config('NOCODEAPI_BASE_URL')
 
-# Logging configuration for debugging
+
+# Logging Configuration
+#  Add logging configuration to capture debug information 
+
+
+
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)  # Ensure logs directory exists
+
+LOG_FILE = os.path.join(LOG_DIR, 'django.log')  
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name}:{lineno} - {message}',
+            'style': '{',
+        },
+    },
+
     'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
         'file': {
+            'level': 'WARNING',
             'class': 'logging.FileHandler',
-            'filename': 'debug.log',
+            'filename': LOG_FILE,  # Now defined
+            'mode': 'w',  # Overwrite each run
+            'formatter': 'verbose',
         },
     },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
-    },
+
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'oroshine_webapp': {  # Replace with your actual app name
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': False,
+            'handlers': ['file'],
+            'level': 'WARNING',
+            'propagate': True,
         },
     },
 }
