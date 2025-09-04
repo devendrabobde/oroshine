@@ -7,11 +7,18 @@ from django.core.mail import send_mail
 from .models import Contact, Appointment
 from .forms import NewUserForm, AppointmentForm
 from .utils import create_nocodeapi_event, send_contact_form_emails
-import logging
 from django.utils.timezone import now
 from django.core.validators import validate_email, ValidationError
+from datetime import datetime, timedelta, date
+from django.conf import settings
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from .emails import send_appointment_email
+import requests
+import logging
 
 logger = logging.getLogger(__name__)
+
 
 def homepage(request):
     return render(request, 'index.html', context={})
@@ -19,29 +26,84 @@ def homepage(request):
 def about(request):
     return render(request, 'about.html', context={})
 
+
+
 def appointment(request):
+    """
+    Handles appointment booking with enhanced slot conflict detection and user-friendly messages.
+    """
     if request.method == 'POST':
-        # Print form data
-        # print(f"Form data: {dict(request.POST)}")
-        
         form = AppointmentForm(request.POST)
-        
         if form.is_valid():
+            appointment_obj = form.save(commit=False)
+            appointment_time = appointment_obj.time
+            buffer_minutes = 30
+
+            # Calculate time buffer range
+            appointment_datetime = datetime.combine(appointment_obj.date, appointment_time)
+            start_time = (appointment_datetime - timedelta(minutes=buffer_minutes)).time()
+            end_time = (appointment_datetime + timedelta(minutes=buffer_minutes)).time()
+
+            # Check for overlapping appointments
+            is_booked = Appointment.objects.filter(
+                date=appointment_obj.date,
+                doctor_email=appointment_obj.doctor_email,
+                time__range=(start_time, end_time)
+            ).exists()
+
+            logger.info(
+                f"Checking availability for {appointment_obj.date} "
+                f"{start_time}–{end_time} with {appointment_obj.doctor_email}: {is_booked}"
+            )
+
+            if is_booked:
+                messages.error(
+                    request,
+                    f" This time slot or a nearby slot is already booked "
+                    f"(±{buffer_minutes} minutes). Please choose another one."
+                )
+                return render(request, 'appointment.html', {'form': form})
+
             try:
-                appointment = form.save()
-                calendar_response = create_nocodeapi_event(appointment)
-                messages.success(request, 'Appointment booked successfully! Calendar invitation sent.')
+                # Save appointment
+                appointment_obj.save()
+                logger.info(f"Appointment saved: {appointment_obj}")
+
+                # Send confirmation email
+                send_appointment_email(appointment_obj)
+
+                # Create calendar event
+                calendar_response = create_nocodeapi_event(appointment_obj)
+                logger.info(f"Calendar API Response: {calendar_response}")
+
+                messages.success(
+                    request,
+                    " Appointment booked successfully! A confirmation email and calendar invite have been sent."
+                )
                 return redirect('appointment')
+
             except Exception as e:
-                logger.error(f"Error creating appointment: {e}")
-                messages.error(request, f'Error booking appointment: {str(e)}')
+                logger.exception("Error booking appointment")
+                messages.error(
+                    request,
+                    f" There was an issue booking your appointment: {str(e)}"
+                )
         else:
-            logger.error(f"Form validation errors: {form.errors}")
-            messages.error(request, 'Please correct the errors below.')
+            messages.warning(
+                request,
+                "Please fix the highlighted errors before submitting the form."
+            )
     else:
         form = AppointmentForm()
 
     return render(request, 'appointment.html', {'form': form})
+
+
+
+
+
+
+
 
 def contact(request):
     """
@@ -159,3 +221,54 @@ def logout_request(request):
     logout(request)
     messages.success(request, "You have successfully logged out.")
     return redirect("/")
+
+
+
+
+
+# def create_nocodeapi_event(appointment):
+#     """
+#     Creates a Google Calendar event using NoCodeAPI.
+#     """
+#     try:
+#         url = f"{settings.NOCODEAPI_BASE_URL}/event"
+#         start_datetime = datetime.combine(appointment.date, appointment.time)
+#         end_datetime = start_datetime + timedelta(minutes=30)
+        
+#         payload = {
+#             "summary": f"Dental Appointment: {appointment.service}",
+#             "description": f"""
+# Appointment Details:
+# - Service: {appointment.service}
+# - Patient: {appointment.name}
+# - Patient Email: {appointment.email}
+# - Doctor: {appointment.doctor_email}
+# - Additional Notes: {appointment.message or "None"}
+#             """.strip(),
+#             "start": {
+#                 "dateTime": start_datetime.isoformat(),
+#                 "timeZone": "Asia/Kolkata"
+#             },
+#             "end": {
+#                 "dateTime": end_datetime.isoformat(),
+#                 "timeZone": "Asia/Kolkata"
+#             },
+#             "attendees": [
+#                 {"email": appointment.email},
+#                 {"email": appointment.doctor_email}
+#             ],
+#         }
+
+#         headers = {"Content-Type": "application/json"}
+
+#         response = requests.post(url, json=payload, headers=headers, timeout=10)
+#         response.raise_for_status()
+        
+#         return response.json()
+    
+#     except requests.exceptions.RequestException as e:
+#         logger.error(f"Calendar API request failed: {e}")
+#         raise Exception(f"Calendar API request failed: {e}")
+#     except Exception as e:
+#         logger.error(f"Unexpected error creating calendar event: {e}")
+#         raise
