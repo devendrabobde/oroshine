@@ -1,0 +1,48 @@
+pipeline{
+    agent any
+    
+    stages{
+        stage("clone code"){
+            steps{
+                echo "cloning the code"
+                git url:"https://github.com/devendrabobde/oroshine.git",branch: "master"
+            }
+        }
+        
+        stage("build") {
+            steps {
+                echo "Building the code"
+                dir('oroshine_app') {
+                    sh 'docker build -t oroshine_app .'
+                }
+            }
+        }
+
+         stage("Push to Docker Hub") {
+            steps {
+                echo "Pushing the image to Docker Hub"
+                sh "docker tag oroshine_app harshalbhoyar14/oroshine_app:latest"
+                sh "docker login -u harshalbhoyar14 -p Harshal@1999"
+                sh "docker push harshalbhoyar14/oroshine_app:latest"
+                }
+            }
+
+        stage("Deploy") {
+            steps {
+                echo "Deploying the container"
+                sh "ls -ltr"
+                dir('oroshine_app') {
+                    sh 'docker-compose down && docker-compose up -d'
+                }
+               
+                }
+        }
+    }
+}
+
+
+     
+   
+ 
+
+ 
