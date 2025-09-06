@@ -50,6 +50,9 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap4',
     'oroshine_webapp',
+    'oroshine_app',
+    
+
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,49 @@
+{% comment %} User Email Template {% endcomment %}
+{% block user_email %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Thank You - OroShine Dental Care</title>
+    <style>
+        /* Your user email CSS here */
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <h1>Thank You!</h1>
+        <p>Dear {{ name }},</p>
+        <p>Thank you for reaching out to OroShine Dental Care!</p>
+        <p><strong>Subject:</strong> {{ subject }}</p>
+        <p>{{ message }}</p>
+        <p>Submitted on: {{ timestamp }}</p>
+    </div>
+</body>
+</html>
+{% endblock %}
+
+{% comment %} Admin Email Template {% endcomment %}
+{% block admin_email %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Contact Inquiry</title>
+    <style>
+        /* Your admin email CSS here */
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <h1>New Contact Inquiry</h1>
+        <p><strong>Name:</strong> {{ name }}</p>
+        <p><strong>Email:</strong> {{ email }}</p>
+        <p><strong>Subject:</strong> {{ subject }}</p>
+        <p><strong>Message:</strong> {{ message }}</p>
+        <p><strong>IP:</strong> {{ user_ip }}</p>
+        <p><strong>Origin:</strong> {{ page_origin }}</p>
+        <p><strong>Submitted:</strong> {{ timestamp }}</p>
+    </div>
+</body>
+</html>
+{% endblock %}

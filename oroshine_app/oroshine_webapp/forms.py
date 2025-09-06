@@ -1,44 +1,89 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Appointment
+from .models import Appointment,Contact,UserProfile
 from datetime import date
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 import logging
+
 logger = logging.getLogger(__name__)
 
 
-# Create your forms here.
+
+class ContactForm(forms.ModelForm):
+    name = forms.CharField(
+        max_length=100,
+        required=True,
+        widget=forms.TextInput(attrs={'placeholder': 'Your Name'})
+    )
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'placeholder': 'Your Email'})
+    )
+    subject = forms.CharField(
+        max_length=200,
+        required=True,
+        widget=forms.TextInput(attrs={'placeholder': 'Subject'})
+    )
+    message = forms.CharField(
+        required=True,
+        widget=forms.Textarea(attrs={'placeholder': 'Your Message'})
+    )
+
+    class Meta:
+        model = Contact
+        fields = ['name', 'email', 'subject', 'message']
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email').lower()
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise forms.ValidationError("Invalid email address")
+        return email
+
+
+
+
 
 class NewUserForm(UserCreationForm):
-	email = forms.EmailField(required=True)
+    first_name = forms.CharField(max_length=30, required=True, widget=forms.TextInput(attrs={'placeholder': 'First Name'}))
+    last_name = forms.CharField(max_length=30, required=True, widget=forms.TextInput(attrs={'placeholder': 'Last Name'}))
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'placeholder': 'Email'}))
+    
+    dob = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    gender = forms.ChoiceField(choices=UserProfile.GENDER_CHOICES, required=False)
+    address = forms.CharField(widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'Address'}), required=False)
+    phone_number = forms.CharField(max_length=15, required=True, widget=forms.TextInput(attrs={'placeholder': 'Contact Number'}))
+    emergency_contact_name = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'placeholder': 'Emergency Contact Name'}))
+    emergency_contact_number = forms.CharField(max_length=15, required=False, widget=forms.TextInput(attrs={'placeholder': 'Emergency Contact Number'}))
 
-	class Meta:
-		model = User
-		fields = ("username", "email", "password1", "password2")
+    class Meta:
+        model = User
+        fields = ("first_name", "last_name", "username", "email", "dob", "gender", "address",
+                  "phone_number", "emergency_contact_name", "emergency_contact_number", "password1", "password2")
 
-	def save(self, commit=True):
-		user = super(NewUserForm, self).save(commit=False)
-		user.email = self.cleaned_data['email']
-		if commit:
-			user.save()
-		return user
+    def save(self, commit=True):
+        user = super(NewUserForm, self).save(commit=False)
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.email = self.cleaned_data['email']
+        if commit:
+            user.save()
+            
+            UserProfile.objects.create(
+                user=user,
+                dob=self.cleaned_data.get('dob'),
+                gender=self.cleaned_data.get('gender'),
+                address=self.cleaned_data.get('address'),
+                phone_number=self.cleaned_data.get('phone_number'),
+                emergency_contact_name=self.cleaned_data.get('emergency_contact_name'),
+                emergency_contact_number=self.cleaned_data.get('emergency_contact_number'),
+            )
+        return user
 
 
-# class AppointmentForm(forms.ModelForm):
-#     class Meta:
-#         model = Appointment
-#         fields = ["service", "doctor_email", "name", "email", "date", "time", "message"]
-#         widgets = {
-#             'date': forms.DateInput(attrs={'type': 'date', 'min': date.today()}),
-#             'time': forms.TimeInput(attrs={'type': 'time'}),
-#             'message': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Additional Message (Optional)'}),
-#         }
-
-#     def clean_date(self):
-#         appointment_date = self.cleaned_data.get('date')
-#         if appointment_date and appointment_date < date.today():
-#             raise forms.ValidationError("Appointment date cannot be in the past.")
-#         return appointment_date
 
 
 

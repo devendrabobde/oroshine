@@ -1,274 +1,226 @@
 from django.shortcuts import render, redirect
-from .forms import NewUserForm
 from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.forms import AuthenticationForm, UsernameField
 from django.contrib import messages
-from django.core.mail import send_mail
-from .models import Contact, Appointment
-from .forms import NewUserForm, AppointmentForm
-from .utils import create_nocodeapi_event, send_contact_form_emails
-from django.utils.timezone import now
 from django.core.validators import validate_email, ValidationError
-from datetime import datetime, timedelta, date
+from django.utils.timezone import now
+from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from .emails import send_appointment_email
-import requests
-import logging
+from datetime import datetime, timedelta
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_http_methods
+from django.http import HttpResponseBadRequest
+from django.contrib.auth.forms import AuthenticationForm, UsernameField
+from .forms import NewUserForm, AppointmentForm
+from .models import Contact, Appointment
+from .utils import create_nocodeapi_event
+from .emails import (
+    send_appointment_email,
+    send_registration_email,
+    send_contact_form_emails,
+    send_welcome_login_email
+)
 
+import logging
 logger = logging.getLogger(__name__)
 
 
+# ------------------ STATIC PAGES ------------------ #
 def homepage(request):
-    return render(request, 'index.html', context={})
+    return render(request, 'index.html')
 
 def about(request):
-    return render(request, 'about.html', context={})
+    return render(request, 'about.html')
+
+def price(request):
+    return render(request, 'price.html')
+
+def service(request):
+    return render(request, 'service.html')
+
+def team(request):
+    return render(request, 'team.html')
+
+def testimonial(request):
+    return render(request, 'testimonial.html')
 
 
-
+# ------------------ APPOINTMENT ------------------ #
+@login_required(login_url='/login')
+@csrf_protect
+@require_http_methods(["GET", "POST"])
 def appointment(request):
     """
-    Handles appointment booking with enhanced slot conflict detection and user-friendly messages.
+    Handles appointment booking with improved slot conflict detection,
+    CSRF protection, and better error handling.
     """
     if request.method == 'POST':
         form = AppointmentForm(request.POST)
-        if form.is_valid():
-            appointment_obj = form.save(commit=False)
-            appointment_time = appointment_obj.time
-            buffer_minutes = 30
+        if not form.is_valid():
+            messages.warning(request, "Please correct the highlighted errors.")
+            return render(request, 'appointment.html', {'form': form})
 
-            # Calculate time buffer range
-            appointment_datetime = datetime.combine(appointment_obj.date, appointment_time)
-            start_time = (appointment_datetime - timedelta(minutes=buffer_minutes)).time()
-            end_time = (appointment_datetime + timedelta(minutes=buffer_minutes)).time()
+        appointment_obj = form.save(commit=False)
+        appointment_datetime = datetime.combine(
+            appointment_obj.date, appointment_obj.time
+        )
+        buffer_minutes = 30
+        start_dt = appointment_datetime - timedelta(minutes=buffer_minutes)
+        end_dt = appointment_datetime + timedelta(minutes=buffer_minutes)
+        
+        is_booked = Appointment.objects.filter(
+            doctor_email=appointment_obj.doctor_email,
+            date=appointment_obj.date,
+            
+            time__range=(start_dt.time(), end_dt.time())
+        ).exists()
 
-            # Check for overlapping appointments
-            is_booked = Appointment.objects.filter(
-                date=appointment_obj.date,
-                doctor_email=appointment_obj.doctor_email,
-                time__range=(start_time, end_time)
-            ).exists()
-
-            logger.info(
-                f"Checking availability for {appointment_obj.date} "
-                f"{start_time}–{end_time} with {appointment_obj.doctor_email}: {is_booked}"
-            )
-
-            if is_booked:
-                messages.error(
-                    request,
-                    f" This time slot or a nearby slot is already booked "
-                    f"(±{buffer_minutes} minutes). Please choose another one."
-                )
-                return render(request, 'appointment.html', {'form': form})
-
-            try:
-                # Save appointment
-                appointment_obj.save()
-                logger.info(f"Appointment saved: {appointment_obj}")
-
-                # Send confirmation email
-                send_appointment_email(appointment_obj)
-
-                # Create calendar event
-                calendar_response = create_nocodeapi_event(appointment_obj)
-                logger.info(f"Calendar API Response: {calendar_response}")
-
-                messages.success(
-                    request,
-                    " Appointment booked successfully! A confirmation email and calendar invite have been sent."
-                )
-                return redirect('appointment')
-
-            except Exception as e:
-                logger.exception("Error booking appointment")
-                messages.error(
-                    request,
-                    f" There was an issue booking your appointment: {str(e)}"
-                )
-        else:
-            messages.warning(
+        if is_booked:
+            messages.error(
                 request,
-                "Please fix the highlighted errors before submitting the form."
+                f"Time slot already booked (±{buffer_minutes} min). Please choose another."
             )
+            return render(request, 'appointment.html', {'form': form})
+
+        try:
+            appointment_obj.save()
+            logger.info(f"Appointment booked: {appointment_obj}")
+
+            # Send confirmation email 
+            send_appointment_email(appointment_obj)
+
+            # Add to calendar
+            create_nocodeapi_event(appointment_obj)
+
+            messages.success(
+                request,
+                "Appointment booked successfully! Confirmation email sent."
+            )
+            return redirect('appointment')
+        except Exception:
+            logger.exception("Error while booking appointment")
+            messages.error(request, "Unexpected error. Please try again later.")
+
     else:
         form = AppointmentForm()
 
     return render(request, 'appointment.html', {'form': form})
 
 
+# ------------------ CONTACT FORM ------------------ #
 
-
-
-
-
-
+@csrf_protect
+@require_http_methods(["GET", "POST"])
 def contact(request):
     """
-    Handles the contact form submission, validation, and saves the inquiry.
-    It then delegates the email sending to a separate service.
+    Secure contact form handling with CSRF protection, email validation,
+    spam protection potential, and logging.
     """
     if request.method == 'GET':
+        return render(request, 'contact.html', {'page_title': 'Contact Us - OroShine Dental Care'})
+
+    # POST: Process submission
+    name = request.POST.get('name', '').strip()
+    email = request.POST.get('email', '').strip().lower()
+    subject = request.POST.get('subject', '').strip()
+    message = request.POST.get('message', '').strip()
+
+    errors = []
+    if not name:
+        errors.append("Name is required")
+    if not email:
+        errors.append("Email is required")
+    else:
+        try:
+            validate_email(email)
+        except ValidationError:
+            errors.append("Invalid email address")
+    if not subject:
+        errors.append("Subject is required")
+    if not message:
+        errors.append("Message is required")
+
+    if errors:
+        for error in errors:
+            messages.error(request, error)
         return render(request, 'contact.html', {
-            'page_title': 'Contact Us - OroShine Dental Care'
+            'page_title': 'Contact Us - OroShine Dental Care',
+            'name': name,
+            'email': email,
+            'subject': subject,
+            'message': message
         })
 
     try:
-        # Extract and sanitize form data
-        name = request.POST.get('name', '').strip()
-        email = request.POST.get('email', '').strip().lower()
-        subject = request.POST.get('subject', '').strip()
-        message = request.POST.get('message', '').strip()
-
-        # Validation
-        errors = []
-        if not name:
-            errors.append("Name is required")
-        if not email:
-            errors.append("Email is required")
-        else:
-            try:
-                validate_email(email)
-            except ValidationError:
-                errors.append("Invalid email address")
-        if not subject:
-            errors.append("Subject is required")
-        if not message:
-            errors.append("Message is required")
-
-        if errors:
-            for error in errors:
-                messages.error(request, error)
-            return render(request, 'contact.html', {
-                'page_title': 'Contact Us - OroShine Dental Care',
-                'name': name,
-                'email': email,
-                'subject': subject,
-                'message': message
-            })
-
-        # Save to database
+        # Save inquiry
         contact_inquiry = Contact.objects.create(
-            name=name,
-            email=email,
-            subject=subject,
-            message=message
+            name=name, email=email, subject=subject, message=message
         )
 
-        # Get request-specific metadata
         user_ip = request.META.get('REMOTE_ADDR', 'Unknown IP')
         page_origin = request.META.get('HTTP_REFERER', 'Direct Access')
         timestamp = now().strftime('%B %d, %Y at %I:%M %p %Z')
 
-        # Delegate email sending to a service function
+        # Send confirmation email
         send_contact_form_emails(contact_inquiry, user_ip, page_origin, timestamp)
 
-        messages.success(request, " Thank you! We've received your message and will contact you within 24 hours.")
-        return redirect('home')
-
-    except Exception as e:
-        logger.error(f"Contact form error: {str(e)}", exc_info=True)
+        messages.success(request, "Thank you! We'll respond within 24 hours.")
+        return redirect('contact')  # Keeps user on the same page
+    except Exception:
+        logger.exception("Contact form submission failed")
         messages.error(request, "Something went wrong. Please try again.")
         return redirect('contact')
 
 
-def price(request):
-    return render(request, 'price.html', context={})
 
-def service(request):
-    return render(request, 'service.html', context={})
 
-def team(request):
-    return render(request, 'team.html', context={})
-
-def testimonial(request):
-    return render(request, 'testimonial.html', context={})
-
+# ------------------ AUTHENTICATION ------------------ #
+@csrf_protect
 def register_request(request):
     if request.method == "POST":
         form = NewUserForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(request, "Registration successful.")
+            send_registration_email(user)
+            messages.success(request, "Registration successful. Welcome email sent!")
             return redirect("/")
-        messages.error(request, "Unsuccessful registration. Invalid information.")
-    form = NewUserForm()
-    return render(request=request, template_name="register.html", context={"register_form": form})
+        else:
+            messages.error(request, "Invalid information. Please correct the errors.")
+    else:
+        form = NewUserForm()
+    return render(request, "register.html", {"register_form": form})
 
+
+@csrf_protect
 def login_request(request):
     if request.method == "POST":
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
-            if user is not None:
+            user = authenticate(
+                username=form.cleaned_data.get('username'),
+                password=form.cleaned_data.get('password')
+            )
+            if user:
                 login(request, user)
-                messages.success(request, f"You are now logged in as {username}.")
-                messages.success(request, "Login successful.")
+                messages.success(request, f"Welcome back, {user.username}!")
+                
+                # Send Welcome Email
+                if user.email:
+                    send_welcome_login_email(user)
+
                 return redirect("/")
             else:
                 messages.error(request, "Invalid username or password.")
         else:
-            messages.error(request, "Invalid username or password.")
-    form = AuthenticationForm()
-    return render(request=request, template_name="login.html", context={"login_form": form})
+            messages.error(request, "Invalid login credentials.")
+    else:
+        form = AuthenticationForm()
+    return render(request, "login.html", {"login_form": form})
 
+@login_required
 def logout_request(request):
     logout(request)
     messages.success(request, "You have successfully logged out.")
     return redirect("/")
-
-
-
-
-
-# def create_nocodeapi_event(appointment):
-#     """
-#     Creates a Google Calendar event using NoCodeAPI.
-#     """
-#     try:
-#         url = f"{settings.NOCODEAPI_BASE_URL}/event"
-#         start_datetime = datetime.combine(appointment.date, appointment.time)
-#         end_datetime = start_datetime + timedelta(minutes=30)
-        
-#         payload = {
-#             "summary": f"Dental Appointment: {appointment.service}",
-#             "description": f"""
-# Appointment Details:
-# - Service: {appointment.service}
-# - Patient: {appointment.name}
-# - Patient Email: {appointment.email}
-# - Doctor: {appointment.doctor_email}
-# - Additional Notes: {appointment.message or "None"}
-#             """.strip(),
-#             "start": {
-#                 "dateTime": start_datetime.isoformat(),
-#                 "timeZone": "Asia/Kolkata"
-#             },
-#             "end": {
-#                 "dateTime": end_datetime.isoformat(),
-#                 "timeZone": "Asia/Kolkata"
-#             },
-#             "attendees": [
-#                 {"email": appointment.email},
-#                 {"email": appointment.doctor_email}
-#             ],
-#         }
-
-#         headers = {"Content-Type": "application/json"}
-
-#         response = requests.post(url, json=payload, headers=headers, timeout=10)
-#         response.raise_for_status()
-        
-#         return response.json()
-    
-#     except requests.exceptions.RequestException as e:
-#         logger.error(f"Calendar API request failed: {e}")
-#         raise Exception(f"Calendar API request failed: {e}")
-#     except Exception as e:
-#         logger.error(f"Unexpected error creating calendar event: {e}")
-#         raise
