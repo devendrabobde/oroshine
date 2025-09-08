@@ -149,6 +149,15 @@ EMAIL_HOST_PASSWORD=your-app-password
 
 # Calendar Integration
 NOCODEAPI_CALENDAR_URL=https://v1.nocodeapi.com/your-username/calendar/your-api-key
+
+#google Auth credential for socialauth-google  
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI= website-url/accounts/google/login/callback/ 
+GOOGLE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
+GOOGLE_TOKEN_URI=https://oauth2.googleapis.com/token
+GOOGLE_AUTH_PROVIDER_CERT_URL=your-google-auth-providerer-cert-url
+GOOGLE_JAVASCRIPT_ORIGINS=your-website-url
 ```
 
 ### 2. Build and Run
@@ -249,6 +258,11 @@ curl -X GET "https://v1.nocodeapi.com/your-username/calendar/your-api-key/events
 
 ## 🔧 Troubleshooting
 
+
+# Google OAuth2 Configuration
+
+
+
 ### Database Issues
 ```bash
 # Reset migrations
@@ -287,6 +301,7 @@ docker-compose restart
 - **Admin Interface** - Django admin panel for management
 - **Cross-Platform** - Works on Linux, macOS, and Windows
 - **Docker Ready** - Containerized deployment option
+
 
 ## 📝 Development Notes
 

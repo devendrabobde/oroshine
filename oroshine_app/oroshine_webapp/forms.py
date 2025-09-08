@@ -6,7 +6,8 @@ from datetime import date
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 import logging
-
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Submit
 logger = logging.getLogger(__name__)
 
 
@@ -82,6 +83,29 @@ class NewUserForm(UserCreationForm):
                 emergency_contact_number=self.cleaned_data.get('emergency_contact_number'),
             )
         return user
+
+
+class UserProfileForm(forms.ModelForm):
+    dob = forms.DateField(required=False, widget=forms.DateInput(attrs={'type':'date'}))
+    gender = forms.ChoiceField(choices=UserProfile.GENDER_CHOICES, required=False)
+    address = forms.CharField(widget=forms.Textarea(attrs={'rows':2}), required=False)
+    phone_number = forms.CharField(max_length=15, required=False)
+    emergency_contact_name = forms.CharField(max_length=100, required=False)
+    emergency_contact_number = forms.CharField(max_length=15, required=False)
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'username', 'email', 
+                  'dob', 'gender', 'address', 'phone_number',
+                  'emergency_contact_name', 'emergency_contact_number']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.add_input(Submit('submit', 'Update Profile'))
+
+
 
 
 

@@ -44,24 +44,24 @@
 
                         <!-- Enhanced Messages Section -->
                         {% if messages %}
-                            {% for message in messages %}
-                                <div class="alert 
+                        {% for message in messages %}
+                        <div class="alert 
                                     {% if 'error' in message.tags %} alert-danger 
                                     {% elif 'success' in message.tags %} alert-success 
                                     {% elif 'warning' in message.tags %} alert-warning 
                                     {% else %} alert-info {% endif %}
                                     alert-dismissible fade show mt-3" role="alert">
-                                    <strong>
-                                        {% if 'error' in message.tags %}❌ Error: 
-                                        {% elif 'success' in message.tags %}✅ Success: 
-                                        {% elif 'warning' in message.tags %}⚠ Warning: 
-                                        {% else %}ℹ Info: 
-                                        {% endif %}
-                                    </strong>
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                </div>
-                            {% endfor %}
+                            <strong>
+                                {% if 'error' in message.tags %}❌ Error:
+                                {% elif 'success' in message.tags %}✅ Success:
+                                {% elif 'warning' in message.tags %}⚠ Warning:
+                                {% else %}ℹ Info:
+                                {% endif %}
+                            </strong>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
                         {% endif %}
 
                         <form method="POST" action="{% url 'appointment' %}">
@@ -70,14 +70,27 @@
 
                                 <!-- Service Dropdown -->
                                 <div class="col-12 col-sm-6">
-                                    <select name="service" class="form-select bg-light border-0" style="height: 55px;" required>
+                                    <select name="service" class="form-select bg-light border-0" style="height: 55px;"
+                                        required>
                                         <option value="" selected disabled>Select A Service</option>
                                         <option value="General Checkup">General Checkup</option>
                                         <option value="Teeth Cleaning">Teeth Cleaning</option>
                                         <option value="Dental Filling">Dental Filling</option>
                                         <option value="Tooth Extraction">Tooth Extraction</option>
+                                        <option value="Impaction / Impacted Tooth Extraction">Impaction / Impacted Tooth
+                                            Extraction</option>
                                         <option value="Teeth Whitening">Teeth Whitening</option>
                                         <option value="Orthodontics">Orthodontics</option>
+                                        <option value="Crowns and Bridges Fixing">Crowns and Bridges Fixing</option>
+                                        <option value="Artificial Teeth">Artificial Teeth</option>
+                                        <option value="Acrylic Partial Denture">Acrylic Partial Denture</option>
+                                        <option value="BPS Dentures Fixing">BPS Dentures Fixing</option>
+                                        <option value="Cast Partial Denture">Cast Partial Denture</option>
+                                        <option value="Complete/Partial Dentures Fixing">Complete/Partial Dentures
+                                            Fixing</option>
+                                        <option value="Cosmetic / Aesthetic Dentistry">Cosmetic / Aesthetic Dentistry
+                                        </option>
+                                        <option value="Endosurgery">Endosurgery</option>
                                     </select>
                                     {% if form.service.errors %}
                                     <div class="text-danger small mt-1">{{ form.service.errors.0 }}</div>

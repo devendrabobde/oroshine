@@ -4,19 +4,368 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thank You - OroShine Dental Care</title>
     <style>
-        /* Your user email CSS here */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c5aa0 0%, #1e3d72 100%);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tagline {
+            font-size: 14px;
+            opacity: 0.9;
+            font-style: italic;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .thank-you {
+            font-size: 24px;
+            color: #2c5aa0;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 25px;
+        }
+        
+        .message-details {
+            background: #f8f9ff;
+            border-left: 4px solid #2c5aa0;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .message-details h3 {
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .detail-item {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e0e4e7;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #333;
+            display: inline-block;
+            min-width: 100px;
+        }
+        
+        .detail-value {
+            color: #666;
+        }
+        
+        .services-section {
+            background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 10px;
+            border: 1px solid #d1ecf1;
+        }
+        
+        .services-title {
+            font-size: 20px;
+            color: #2c5aa0;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .service-category {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e9ecef;
+        }
+        
+        .service-category h4 {
+            color: #2c5aa0;
+            margin-bottom: 12px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .service-list {
+            list-style: none;
+        }
+        
+        .service-list li {
+            padding: 4px 0;
+            color: #666;
+            font-size: 14px;
+            position: relative;
+            padding-left: 15px;
+        }
+        
+        .service-list li::before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        .contact-info {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 25px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .contact-info h3 {
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .contact-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #666;
+        }
+        
+        .contact-item strong {
+            color: #2c5aa0;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 25px 40px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .footer p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .social-links {
+            margin-top: 15px;
+        }
+        
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #2c5aa0;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 8px 12px;
+            border: 1px solid #2c5aa0;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .social-links a:hover {
+            background: #2c5aa0;
+            color: white;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+            }
+            
+            .content, .header {
+                padding: 20px;
+            }
+            
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .contact-details {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="email-container">
-        <h1>Thank You!</h1>
-        <p>Dear {{ name }},</p>
-        <p>Thank you for reaching out to OroShine Dental Care!</p>
-        <p><strong>Subject:</strong> {{ subject }}</p>
-        <p>{{ message }}</p>
-        <p>Submitted on: {{ timestamp }}</p>
+        <div class="header">
+            <div class="logo">🦷 OroShine Dental Care</div>
+            <div class="tagline">Your Smile, Our Passion</div>
+        </div>
+        
+        <div class="content">
+            <div class="thank-you">Thank You for Contacting Us!</div>
+            <p class="greeting">Dear {{ name }},</p>
+            
+            <p>We truly appreciate you reaching out to OroShine Dental Care. Your inquiry is important to us, and we're excited to help you achieve your best smile!</p>
+            
+            <div class="message-details">
+                <h3>📋 Your Inquiry Details</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Subject:</span>
+                    <span class="detail-value">{{ subject }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Message:</span>
+                    <span class="detail-value">{{ message }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Submitted:</span>
+                    <span class="detail-value">{{ timestamp }}</span>
+                </div>
+            </div>
+            
+            <p>Our dental care team will review your message and respond within 24 hours during business days. For urgent dental concerns, please call our office directly.</p>
+            
+            <div class="services-section">
+                <h3 class="services-title">🏥 Our Comprehensive Dental Services</h3>
+                <div class="services-grid">
+                    <div class="service-category">
+                        <h4>General Dentistry</h4>
+                        <ul class="service-list">
+                            <li>Routine Cleanings & Exams</li>
+                            <li>Dental Fillings</li>
+                            <li>Root Canal Therapy</li>
+                            <li>Tooth Extractions</li>
+                            <li>Gum Disease Treatment</li>
+                            <li>Oral Cancer Screening</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="service-category">
+                        <h4>Cosmetic Dentistry</h4>
+                        <ul class="service-list">
+                            <li>Teeth Whitening</li>
+                            <li>Dental Veneers</li>
+                            <li>Dental Bonding</li>
+                            <li>Smile Makeovers</li>
+                            <li>Invisalign Clear Aligners</li>
+                            <li>Gum Contouring</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="service-category">
+                        <h4>Restorative Dentistry</h4>
+                        <ul class="service-list">
+                            <li>Dental Crowns & Bridges</li>
+                            <li>Dental Implants</li>
+                            <li>Dentures & Partials</li>
+                            <li>Inlays & Onlays</li>
+                            <li>TMJ Treatment</li>
+                            <li>Full Mouth Reconstruction</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="service-category">
+                        <h4>Specialized Care</h4>
+                        <ul class="service-list">
+                            <li>Pediatric Dentistry</li>
+                            <li>Orthodontics</li>
+                            <li>Oral Surgery</li>
+                            <li>Periodontics</li>
+                            <li>Emergency Dental Care</li>
+                            <li>Sedation Dentistry</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="contact-info">
+                <h3>📞 Contact Information</h3>
+                <div class="contact-details">
+                    <div class="contact-item">
+                        <strong>Phone:</strong> (555) 123-SHINE
+                    </div>
+                    <div class="contact-item">
+                        <strong>Email:</strong> info@oroshinedentalcare.com
+                    </div>
+                    <div class="contact-item">
+                        <strong>Address:</strong> 123 Dental Plaza, Smile City
+                    </div>
+                    <div class="contact-item">
+                        <strong>Hours:</strong> Mon-Fri 8AM-6PM
+                    </div>
+                </div>
+                <p><em>Emergency appointments available outside regular hours</em></p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>OroShine Dental Care</strong> - Creating beautiful, healthy smiles since 2010</p>
+            <p>Follow us for dental health tips and updates:</p>
+            <div class="social-links">
+                <a href="#">Facebook</a>
+                <a href="#">Instagram</a>
+                <a href="#">LinkedIn</a>
+                <a href="#">Website</a>
+            </div>
+            <p style="font-size: 12px; color: #999; margin-top: 15px;">
+                This is an automated confirmation email. Please do not reply directly to this message.
+            </p>
+        </div>
     </div>
 </body>
 </html>
@@ -28,21 +377,350 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>New Contact Inquiry</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Contact Inquiry - OroShine Dental Care</title>
     <style>
-        /* Your admin email CSS here */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f1f3f4;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border-top: 5px solid #dc3545;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+            color: white;
+            padding: 25px 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .alert-banner {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .content {
+            padding: 35px 40px;
+        }
+        
+        .inquiry-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .inquiry-info h2 {
+            color: #dc3545;
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #dc3545;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            color: #212529;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        
+        .message-section {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .message-section h3 {
+            color: #004085;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .message-content {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #d1ecf1;
+            font-style: italic;
+            color: #495057;
+            line-height: 1.7;
+        }
+        
+        .technical-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .technical-info h3 {
+            color: #6c757d;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .tech-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .tech-item:last-child {
+            border-bottom: none;
+        }
+        
+        .tech-label {
+            font-weight: 500;
+            color: #6c757d;
+        }
+        
+        .tech-value {
+            color: #495057;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .priority-indicator {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 12px 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .priority-indicator.urgent {
+            background: #f8d7da;
+            border-color: #f1b0b7;
+            color: #721c24;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            text-align: center;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #c82333;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 13px;
+        }
+        
+        .timestamp {
+            background: #343a40;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+            }
+            
+            .content, .header {
+                padding: 20px;
+            }
+            
+            .info-grid, .tech-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="email-container">
-        <h1>New Contact Inquiry</h1>
-        <p><strong>Name:</strong> {{ name }}</p>
-        <p><strong>Email:</strong> {{ email }}</p>
-        <p><strong>Subject:</strong> {{ subject }}</p>
-        <p><strong>Message:</strong> {{ message }}</p>
-        <p><strong>IP:</strong> {{ user_ip }}</p>
-        <p><strong>Origin:</strong> {{ page_origin }}</p>
-        <p><strong>Submitted:</strong> {{ timestamp }}</p>
+        <div class="header">
+            <h1>🚨 New Patient Inquiry</h1>
+            <div class="subtitle">OroShine Dental Care Admin Alert</div>
+        </div>
+        
+        <div class="alert-banner">
+            ⚡ New contact form submission requires your attention
+        </div>
+        
+        <div class="content">
+            <div class="inquiry-info">
+                <h2>👤 Patient Information</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Full Name</div>
+                        <div class="info-value">{{ name }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Email Address</div>
+                        <div class="info-value">{{ email }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Subject</div>
+                        <div class="info-value">{{ subject }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Submission Time</div>
+                        <div class="info-value">{{ timestamp }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="message-section">
+                <h3>💬 Patient Message</h3>
+                <div class="message-content">
+                    {{ message }}
+                </div>
+            </div>
+            
+            <div class="priority-indicator">
+                ⏰ Response Required Within: 24 Hours (Business Days)
+            </div>
+            
+            <div class="action-buttons">
+                <a href="mailto:{{ email }}" class="action-btn btn-primary">📧 Reply to Patient</a>
+                <a href="tel:{{ phone | default:'Not Provided' }}" class="action-btn btn-secondary">📞 Call Patient</a>
+            </div>
+            
+            <div class="technical-info">
+                <h3>🔧 Technical Details</h3>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <span class="tech-label">IP Address:</span>
+                        <span class="tech-value">{{ user_ip }}</span>
+                    </div>
+                    <div class="tech-item">
+                        <span class="tech-label">Page Origin:</span>
+                        <span class="tech-value">{{ page_origin }}</span>
+                    </div>
+                    <div class="tech-item">
+                        <span class="tech-label">User Agent:</span>
+                        <span class="tech-value">{{ user_agent | default:'Not Available' }}</span>
+                    </div>
+                    <div class="tech-item">
+                        <span class="tech-label">Referrer:</span>
+                        <span class="tech-value">{{ referrer | default:'Direct Visit' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>OroShine Dental Care</strong> - Admin Notification System</p>
+            <div class="timestamp">Generated: {{ timestamp }}</div>
+            <p style="margin-top: 15px; font-size: 11px;">
+                This is an automated admin notification. Contact IT support if you experience any issues.
+            </p>
+        </div>
     </div>
 </body>
 </html>

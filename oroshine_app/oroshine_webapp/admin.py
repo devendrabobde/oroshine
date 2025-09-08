@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import UserProfile, Contact, Appointment
 
+
 # ============================
 # UserProfile Admin
 # ============================
@@ -11,7 +12,10 @@ class UserProfileAdmin(admin.ModelAdmin):
         'emergency_contact_name', 'emergency_contact_number'
     ]
     list_filter = ['gender']
-    search_fields = ['user__username', 'user__email', 'phone_number', 'emergency_contact_name']
+    search_fields = [
+        'user__username', 'user__email',
+        'phone_number', 'emergency_contact_name'
+    ]
     fieldsets = (
         (None, {'fields': ('user',)}),
         ('Personal Info', {'fields': ('dob', 'gender', 'address', 'phone_number')}),
@@ -48,7 +52,6 @@ class AppointmentAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at']
     ordering = ['-created_at']
     date_hierarchy = 'date'
-
     fieldsets = (
         (None, {
             'fields': ('user', 'name', 'email', 'service', 'doctor_email', 'date', 'time', 'message')

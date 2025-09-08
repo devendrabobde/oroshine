@@ -12,8 +12,9 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
 from django.http import HttpResponseBadRequest
 from django.contrib.auth.forms import AuthenticationForm, UsernameField
-from .forms import NewUserForm, AppointmentForm
-from .models import Contact, Appointment
+from .forms import NewUserForm, AppointmentForm,UserProfileForm
+from .models import Contact, Appointment, UserProfile
+from django.db import IntegrityError
 from .utils import create_nocodeapi_event
 from .emails import (
     send_appointment_email,
@@ -21,6 +22,10 @@ from .emails import (
     send_contact_form_emails,
     send_welcome_login_email
 )
+from django.http import JsonResponse
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -46,6 +51,46 @@ def testimonial(request):
     return render(request, 'testimonial.html')
 
 
+
+# ------------------ USER PROFILE ------------------ #
+
+@login_required(login_url='/login')
+def profile_view(request):
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            # Update related profile fields
+            profile.dob = request.POST.get('dob')
+            profile.gender = request.POST.get('gender')
+            profile.address = request.POST.get('address')
+            profile.phone_number = request.POST.get('phone_number')
+            profile.emergency_contact_name = request.POST.get('emergency_contact_name')
+            profile.emergency_contact_number = request.POST.get('emergency_contact_number')
+            profile.save()
+            messages.success(request, "Profile updated successfully!")
+            return redirect('profile')
+    else:
+        # Pre-fill form with User + Profile data
+        initial_data = {
+            'first_name': request.user.first_name,
+            'last_name': request.user.last_name,
+            'email': request.user.email,
+            'username': request.user.username,
+            'dob': profile.dob,
+            'gender': profile.gender,
+            'address': profile.address,
+            'phone_number': profile.phone_number,
+            'emergency_contact_name': profile.emergency_contact_name,
+            'emergency_contact_number': profile.emergency_contact_number,
+        }
+        form = UserProfileForm(initial=initial_data)
+
+    return render(request, 'profile.html', {'form': form, 'profile': profile})
+
+
 # ------------------ APPOINTMENT ------------------ #
 @login_required(login_url='/login')
 @csrf_protect
@@ -65,7 +110,7 @@ def appointment(request):
         appointment_datetime = datetime.combine(
             appointment_obj.date, appointment_obj.time
         )
-        buffer_minutes = 30
+        buffer_minutes = 15
         start_dt = appointment_datetime - timedelta(minutes=buffer_minutes)
         end_dt = appointment_datetime + timedelta(minutes=buffer_minutes)
         
@@ -176,21 +221,51 @@ def contact(request):
 
 
 # ------------------ AUTHENTICATION ------------------ #
-@csrf_protect
+
+def check_email_availability(request):
+    email = request.GET.get("email")
+    if not email:
+        return JsonResponse({"available": False, "message": "Email is required."})
+
+    exists = User.objects.filter(email__iexact=email).exists()
+    return JsonResponse({
+        "available": not exists,
+        "message": "Email available." if not exists else "Email already registered."
+    })
+
+
 def register_request(request):
     if request.method == "POST":
         form = NewUserForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            send_registration_email(user)
-            messages.success(request, "Registration successful. Welcome email sent!")
-            return redirect("/")
+            email = form.cleaned_data.get("email")
+
+            # Enforce unique email
+            if User.objects.filter(email__iexact=email).exists():
+                messages.error(request, "This email is already registered. Please log in instead.")
+                return render(request, "register.html", {"register_form": form})
+
+            try:
+                user = form.save()
+                # Explicitly login with ModelBackend (normal signup)
+                login(
+                    request,
+                    user,
+                    backend='django.contrib.auth.backends.ModelBackend'
+                )
+                send_registration_email(user)
+                messages.success(request, "Registration successful. Welcome email sent!")
+                return redirect("/")
+            except IntegrityError:
+                messages.error(request, "A user with this email already exists.")
         else:
             messages.error(request, "Invalid information. Please correct the errors.")
     else:
         form = NewUserForm()
+
     return render(request, "register.html", {"register_form": form})
+
+
 
 
 @csrf_protect
@@ -203,13 +278,14 @@ def login_request(request):
                 password=form.cleaned_data.get('password')
             )
             if user:
-                login(request, user)
+                login(
+                    request,
+                    user,
+                    backend='django.contrib.auth.backends.ModelBackend'
+                )
                 messages.success(request, f"Welcome back, {user.username}!")
-                
-                # Send Welcome Email
                 if user.email:
                     send_welcome_login_email(user)
-
                 return redirect("/")
             else:
                 messages.error(request, "Invalid username or password.")
@@ -217,8 +293,8 @@ def login_request(request):
             messages.error(request, "Invalid login credentials.")
     else:
         form = AuthenticationForm()
-    return render(request, "login.html", {"login_form": form})
 
+    return render(request, "login.html", {"login_form": form})
 @login_required
 def logout_request(request):
     logout(request)
