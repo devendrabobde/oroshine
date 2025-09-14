@@ -269,6 +269,27 @@ docker-compose logs
 # Restart services
 docker-compose restart
 ```
+<!-- optimization -->
+'''
+collectstatic gathers all static assets into the STATIC_ROOT folder.
+
+compress minifies and combines CSS and JS into single optimized files for faster loading.
+
+# Collect all static files
+python manage.py collectstatic --noinput
+
+# Compress CSS and JS into optimized bundles
+python manage.py compress --force 
+
+
+
+'''
+
+
+
+
+
+
 
 ### Common Solutions
 
