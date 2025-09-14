@@ -24,7 +24,6 @@ urlpatterns = [
     
     # Appointment management
     path("appointments/", views.appointment_list, name="appointment_list"),
-    path("appointment/success/", views.appointment_success, name="appointment_success"),
     
     # Password reset
     path("password_reset/", views.CustomPasswordResetView.as_view(), name="password_reset"),

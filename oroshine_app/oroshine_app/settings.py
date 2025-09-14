@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     # Bootstrap and crispy forms
     'crispy_forms',
     'crispy_bootstrap5',
-    
+    # css compression and minify
+    "compressor",
     # Third party - django-allauth
     "allauth",
     "allauth.account",
@@ -68,6 +69,9 @@ MIDDLEWARE = [
     
     # Django Allauth middleware
     'allauth.account.middleware.AccountMiddleware',
+# static compression middleware
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    
 ]
 
 ROOT_URLCONF = 'oroshine_app.urls'
@@ -96,6 +100,13 @@ TEMPLATES = [
     },
 ]
 
+
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+    "compressor.finders.CompressorFinder",  # ✅ required for compressor
+]
+
 WSGI_APPLICATION = 'oroshine_app.wsgi.application'
 
 # Static files
@@ -104,6 +115,20 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
    os.path.join(BASE_DIR, 'oroshine_webapp/static') 
 ]
+
+COMPRESS_ENABLED = True
+COMPRESS_OFFLINE = False
+WHITENOISE_USE_FINDERS = True
+
+
+#  cache 
+WHITENOISE_MAX_AGE = 2628000   # 1 month in seconds
+WHITENOISE_AUTOREFRESH = False  # disable auto refresh in prod (good for performance)
+
+
+# COMPRESS_OFFLINE = False # Only True if you want pre-build during collectstatic
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media files (user uploads)
 MEDIA_URL = "/media/"

@@ -61,20 +61,30 @@
 <a href="" class="btn btn-lg btn-primary btn-lg-square rounded back-to-top"><i class="bi bi-arrow-up"></i></a>
 
 {% load static %}
+{% load compress %}
 
-<!-- JavaScript Libraries -->
-<script src="{% static 'lib/jquery/jquery.min.js' %}"></script>
-<script src="{% static 'lib/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- ✅ Compress all local JS -->
+{% compress js %}
+    <!-- Core libraries -->
+    <script src="{% static 'lib/jquery/jquery.min.js' %}"></script>
+    <script src="{% static 'lib/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 
-<script src="{% static 'lib/wow/wow.min.js' %}"></script>
-<script src="{% static 'lib/easing/easing.min.js' %}"></script>
-<script src="{% static 'lib/waypoints/waypoints.min.js' %}"></script>
-<script src="{% static 'lib/owlcarousel/owl.carousel.min.js' %}"></script>
-<script src="{% static 'lib/tempusdominus/js/moment.min.js' %}"></script>
-<script src="{% static 'lib/tempusdominus/js/moment-timezone.min.js' %}"></script>
-<script src="{% static 'lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js' %}"></script>
-<script src="{% static 'lib/twentytwenty/jquery.event.move.js' %}"></script>
-<script src="{% static 'lib/twentytwenty/jquery.twentytwenty.js' %}"></script>
+    <!-- Animations & UI -->
+    <script src="{% static 'lib/wow/wow.min.js' %}"></script>
+    <script src="{% static 'lib/easing/easing.min.js' %}"></script>
+    <script src="{% static 'lib/waypoints/waypoints.min.js' %}"></script>
+    <script src="{% static 'lib/owlcarousel/owl.carousel.min.js' %}"></script>
 
-<!-- Template Javascript -->
-<script src="{% static 'js/main.js' %}"></script>
+    <!-- Date/Time -->
+    <script src="{% static 'lib/tempusdominus/js/moment.min.js' %}"></script>
+    <script src="{% static 'lib/tempusdominus/js/moment-timezone.min.js' %}"></script>
+    <script src="{% static 'lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js' %}"></script>
+
+    <!-- Before/After Slider -->
+    <script src="{% static 'lib/twentytwenty/js/jquery.event.move.js' %}"></script>
+    <script src="{% static 'lib/twentytwenty/js/jquery.twentytwenty.js' %}"></script>
+
+    <!-- Custom JS -->
+    <script src="{% static 'js/main.js' %}"></script>
+{% endcompress %}
+<!-- ✅ Compress all local JS -->
