@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Thank You - OroShine Dental Care</title>
+  <style>
+    /* Your existing CSS here */
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <div class="tooth-icon">🦷</div>
+      <h1>Thank You!</h1>
+      <p class="subtitle">We've received your inquiry</p>
+    </div>
+    <div class="content">
+      <div class="greeting">
+        Dear {{ name }},
+      </div>
+      <p>Thank you for reaching out to <strong>OroShine Dental Care</strong>!</p>
+      <div class="message-box">
+        <h3>Your Inquiry Subject: {{ subject }}</h3>
+        <div class="user-message">
+          {{ message }}
+        </div>
+      </div>
+      <!-- Rest of your HTML -->
+    </div>
+  </div>
+</body>
+</html>

@@ -14,9 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 
-
-
-
 def send_registration_email(user):
     """
     Sends a branded welcome email to the user after successful registration.
@@ -121,30 +118,6 @@ def send_contact_form_emails(contact_inquiry, user_ip, page_origin, timestamp):
     except Exception as e:
         logger.error(f"Failed to send contact form emails: {e}", exc_info=True)
 
-
-
-
-
-def send_welcome_login_email(user):
-    """
-    Sends a welcome email to the user after login.
-    """
-    subject = "Welcome Back to OroShine Dental Care!"
-    from_email = settings.DEFAULT_FROM_EMAIL
-    to_email = user.email
-    
-    context = {
-        "username": user.username,
-        "site_url": "http://localhost:8000",  
-        "time": now(),
-    }
-
-    html_content = render_to_string("login_welcome_email.html", context)
-    text_content = strip_tags(html_content)  # Fallback for email clients that do not support HTML
-
-    email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
-    email.attach_alternative(html_content, "text/html")
-    email.send()
 
 
 

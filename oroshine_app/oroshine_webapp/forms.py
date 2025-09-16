@@ -1,81 +1,61 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordResetForm
 from django.contrib.auth import authenticate
-from django.core.validators import validate_email
+from django.core.validators import validate_email, RegexValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from datetime import date, timedelta
 import logging
 from .models import CustomUser, UserProfile, Appointment, Contact
 
+
 logger = logging.getLogger(__name__)
 
+from django.contrib.auth.password_validation import validate_password, password_validators_help_text_html
+
+phone_validator = RegexValidator( regex=r'^\+?\d{10,15}$',
+message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed." )
 
 class CustomUserCreationForm(UserCreationForm):
-    """Enhanced user registration form"""
+    """Enhanced user registration form with profile integration"""
     first_name = forms.CharField(
-        max_length=30, 
+        max_length=30,
         required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'First Name'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'})
     )
     last_name = forms.CharField(
-        max_length=30, 
+        max_length=30,
         required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Last Name'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'})
     )
     email = forms.EmailField(
         required=True,
-        widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Email Address'
-        })
-    )
-    username = forms.CharField(
-        max_length=150,
-        required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Username'
-        })
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address'})
     )
     phone_number = forms.CharField(
         max_length=15,
         required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Phone Number (Optional)'
-        })
+        validators=[phone_validator],
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number (Optional)'})
     )
+
+    # Password fields with help text
     password1 = forms.CharField(
         label=_("Password"),
         strip=False,
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Password'
-        })
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Password'}),
+        help_text=password_validators_help_text_html()
     )
     password2 = forms.CharField(
         label=_("Password confirmation"),
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Confirm Password'
-        }),
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm Password'}),
         strip=False
     )
-    
+
     # Profile fields
     dob = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'form-control'
-        }),
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
         label='Date of Birth'
     )
     gender = forms.ChoiceField(
@@ -84,53 +64,29 @@ class CustomUserCreationForm(UserCreationForm):
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     address = forms.CharField(
-        widget=forms.Textarea(attrs={
-            'rows': 3,
-            'class': 'form-control',
-            'placeholder': 'Address (Optional)'
-        }),
+        widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Address (Optional)'}),
         required=False
     )
     emergency_contact_name = forms.CharField(
         max_length=100,
         required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Emergency Contact Name (Optional)'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Emergency Contact Name (Optional)'})
     )
     emergency_contact_number = forms.CharField(
         max_length=15,
         required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Emergency Contact Number (Optional)'
-        })
+        validators=[phone_validator],
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Emergency Contact Number (Optional)'})
     )
-    
+
     class Meta:
         model = CustomUser
         fields = (
-            'first_name', 'last_name', 'username', 'email', 'phone_number',
+            'first_name', 'last_name', 'email', 'phone_number',
             'password1', 'password2'
         )
-    
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if email:
-            email = email.lower().strip()
-            if CustomUser.objects.filter(email=email).exists():
-                raise ValidationError(_("A user with this email already exists."))
-        return email
-    
-    def clean_username(self):
-        username = self.cleaned_data.get('username')
-        if username:
-            username = username.lower().strip()
-            if CustomUser.objects.filter(username=username).exists():
-                raise ValidationError(_("A user with this username already exists."))
-        return username
-    
+
+    # Validation
     def clean_dob(self):
         dob = self.cleaned_data.get('dob')
         if dob:
@@ -141,16 +97,22 @@ class CustomUserCreationForm(UserCreationForm):
             if dob > today:
                 raise ValidationError(_("Date of birth cannot be in the future."))
         return dob
-    
-    def clean_phone_number(self):
-        phone = self.cleaned_data.get('phone_number')
-        if phone:
-            phone = phone.strip()
-            if len(phone) < 10:
-                raise ValidationError(_("Phone number must be at least 10 digits."))
-        return phone
 
-
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.username = user.email  # Always mirror email to username
+        if commit:
+            user.save()
+            # Create profile
+            UserProfile.objects.create(
+                user=user,
+                dob=self.cleaned_data.get('dob'),
+                gender=self.cleaned_data.get('gender'),
+                address=self.cleaned_data.get('address', ''),
+                emergency_contact_name=self.cleaned_data.get('emergency_contact_name', ''),
+                emergency_contact_number=self.cleaned_data.get('emergency_contact_number', '')
+            )
+        return user
 class CustomAuthenticationForm(AuthenticationForm):
     """Enhanced login form"""
     username = forms.CharField(
@@ -204,8 +166,12 @@ class CustomAuthenticationForm(AuthenticationForm):
         return self.cleaned_data
 
 
+
+
+
 class ProfileUpdateForm(forms.ModelForm):
-    """Form for updating user profile"""
+    """Form for updating user profile (with synced CustomUser fields)."""
+    
     first_name = forms.CharField(
         max_length=30,
         widget=forms.TextInput(attrs={'class': 'form-control'})
@@ -215,18 +181,23 @@ class ProfileUpdateForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     email = forms.EmailField(
-        widget=forms.EmailInput(attrs={'class': 'form-control'})
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+        disabled=True  # ensures user can’t edit it
     )
     phone_number = forms.CharField(
         max_length=15,
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
-    
+
     class Meta:
         model = UserProfile
-        fields = ['dob', 'gender', 'address', 'emergency_contact_name', 
-                 'emergency_contact_number', 'bio', ]
+        fields = [
+            'dob', 'gender', 'address', 'emergency_contact_name',
+            'emergency_contact_number', 'bio', 'blood_group', 'allergies',
+            'medical_conditions', 'current_medications', 'dental_history',
+            'last_dental_visit', 'insurance_provider', 'insurance_number',
+        ]
         widgets = {
             'dob': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'gender': forms.Select(attrs={'class': 'form-control'}),
@@ -234,16 +205,37 @@ class ProfileUpdateForm(forms.ModelForm):
             'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control'}),
             'emergency_contact_number': forms.TextInput(attrs={'class': 'form-control'}),
             'bio': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'blood_group': forms.TextInput(attrs={'class': 'form-control'}),
+            'allergies': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'medical_conditions': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'current_medications': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'dental_history': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'last_dental_visit': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'insurance_provider': forms.TextInput(attrs={'class': 'form-control'}),
+            'insurance_number': forms.TextInput(attrs={'class': 'form-control'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         if user:
+            # populate initial values from CustomUser
             self.fields['first_name'].initial = user.first_name
             self.fields['last_name'].initial = user.last_name
             self.fields['email'].initial = user.email
             self.fields['phone_number'].initial = user.phone_number
+
+    def save(self, commit=True):
+        """Save both UserProfile and sync with CustomUser fields (except email)."""
+        profile = super().save(commit=False)
+        user = profile.user
+        user.first_name = self.cleaned_data.get('first_name')
+        user.last_name = self.cleaned_data.get('last_name')
+        user.phone_number = self.cleaned_data.get('phone_number')
+        if commit:
+            user.save()
+            profile.save()
+        return profile
 
 
 class CustomPasswordResetForm(PasswordResetForm):

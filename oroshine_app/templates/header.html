@@ -38,6 +38,7 @@
 <!-- Topbar End -->
 
 
+
 <!-- Navbar Start -->
 <nav class="navbar navbar-expand-lg bg-white navbar-light shadow-sm px-5 py-3 py-lg-0">
     <a href="/" class="navbar-brand p-0">
@@ -46,37 +47,70 @@
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
         <span class="navbar-toggler-icon"></span>
     </button>
+    
     <div class="collapse navbar-collapse" id="navbarCollapse">
         <div class="navbar-nav ms-auto py-0">
             <a href="/" class="nav-item nav-link active">Home</a>
+
             {% if user.is_authenticated %}
-                <a href="{% url 'logout' %}" class="nav-item nav-link">Sign Out</a>
-                <a href="#" class="nav-item nav-link">Welcome, {{user.username}}</a>
-                {% if user.username == "admin" %}
-                    <a href="/admin" class="nav-item nav-link">Admin</a>
-                {% endif %}
+            <!-- User Dropdown -->
+            <div class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa fa-user-circle me-1"></i> {{ user.username }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li>
+                        <a class="dropdown-item" href="{% url 'profile' %}">
+                            <i class="fa fa-id-badge me-2"></i> Profile
+                        </a>
+                    </li>
+                    {% if user.is_superuser %}
+                    <li>
+                        <a class="dropdown-item" href="/admin">
+                            <i class="fa fa-cogs me-2"></i> Admin
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item text-danger" href="{% url 'logout' %}">
+                            <i class="fa fa-sign-out-alt me-2"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
             {% else %}
                 <a href="{% url 'register' %}" class="nav-item nav-link">Sign Up</a>
                 <a href="{% url 'login' %}" class="nav-item nav-link">Sign In</a>
             {% endif %}
+
             <a href="{% url 'about' %}" class="nav-item nav-link">About</a>
             <a href="{% url 'service' %}" class="nav-item nav-link">Service</a>
+
             <div class="nav-item dropdown">
-                <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">Pages</a>
-                <div class="dropdown-menu m-0">
-                    <a href="{% url 'price' %}" class="dropdown-item">Pricing Plan</a>
-                    <a href="{% url 'team' %}" class="dropdown-item">Our Dentist</a>
-                    <a href="{% url 'testimonial' %}" class="dropdown-item">Testimonial</a>
-                    <a href="{% url 'appointment' %}" class="dropdown-item">Appointment</a>
-                </div>
+                <a class="nav-link dropdown-toggle" href="#" id="pagesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Pages
+                </a>
+                <ul class="dropdown-menu m-0" aria-labelledby="pagesDropdown">
+                    <li><a class="dropdown-item" href="{% url 'price' %}">Pricing Plan</a></li>
+                    <li><a class="dropdown-item" href="{% url 'team' %}">Our Dentist</a></li>
+                    <li><a class="dropdown-item" href="{% url 'testimonial' %}">Testimonial</a></li>
+                    <li><a class="dropdown-item" href="{% url 'appointment' %}">Appointment</a></li>
+                </ul>
             </div>
+
             <a href="{% url 'contact' %}" class="nav-item nav-link">Contact</a>
         </div>
-        <button type="button" class="btn text-dark" data-bs-toggle="modal" data-bs-target="#searchModal"><i class="fa fa-search"></i></button>
+
+        <!-- Search & Appointment buttons -->
+        <button type="button" class="btn text-dark" data-bs-toggle="modal" data-bs-target="#searchModal">
+            <i class="fa fa-search"></i>
+        </button>
         <a href="{% url 'appointment' %}" class="btn btn-primary py-2 px-4 ms-3">Appointment</a>
     </div>
 </nav>
 <!-- Navbar End -->
+
 
 
 <!-- Full Screen Search Start -->

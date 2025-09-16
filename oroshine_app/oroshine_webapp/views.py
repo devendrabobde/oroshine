@@ -45,36 +45,6 @@ from .utils import create_nocodeapi_event
 import logging
 logger = logging.getLogger(__name__)
 
-
-# Custom authentication backend for email login
-class EmailBackend:
-    """
-    Custom authentication backend that allows users to log in using their email address.
-    """
-    
-    def authenticate(self, request, username=None, password=None, **kwargs):
-        try:
-            # Try to find user by email
-            user = CustomUser.objects.get(email=username.lower())
-        except CustomUser.DoesNotExist:
-            # Try to find user by username as fallback
-            try:
-                user = CustomUser.objects.get(username=username.lower())
-            except CustomUser.DoesNotExist:
-                return None
-        
-        # Check password
-        if user.check_password(password) and user.is_active:
-            return user
-        return None
-    
-    def get_user(self, user_id):
-        try:
-            return CustomUser.objects.get(pk=user_id)
-        except CustomUser.DoesNotExist:
-            return None
-
-
 # ------------------ STATIC PAGES ------------------ #
 def homepage(request):
     return render(request, 'index.html')
@@ -93,6 +63,9 @@ def team(request):
 
 def testimonial(request):
     return render(request, 'testimonial.html')
+
+
+# ------------------ APPOINTMENT ------------------ #
 
 
 # ------------------ APPOINTMENT ------------------ #
@@ -163,7 +136,6 @@ def appointment(request):
         form = AppointmentForm(initial=initial_data)
 
     return render(request, 'appointment.html', {'form': form})
-
 
 # ------------------ CONTACT FORM ------------------ #
 @csrf_protect
@@ -237,7 +209,7 @@ def register_request(request):
     """Enhanced user registration with atomic transaction"""
     if request.user.is_authenticated:
         messages.info(request, "You are already logged in.")
-        return redirect('home')
+        return redirect('/')
     
     if request.method == "POST":
         form = CustomUserCreationForm(request.POST)
@@ -352,73 +324,16 @@ def logout_request(request):
 def profile_view(request):
     """User profile view"""
     profile, created = UserProfile.objects.get_or_create(user=request.user)
+    appointments = Appointment.objects.filter(user=request.user).order_by('-date', '-time')
     
     context = {
         'user': request.user,
         'profile': profile,
+        'my_appointments':appointments,
         'title': 'My Profile'
     }
     
-    return render(request, 'profile/profile_page.html', context)
-
-
-@login_required
-@csrf_protect
-@transaction.atomic
-def profile_update(request):
-    """Update user profile"""
-    profile, created = UserProfile.objects.get_or_create(user=request.user)
-    
-    if request.method == 'POST':
-        form = ProfileUpdateForm(request.POST, instance=profile, user=request.user)
-        if form.is_valid():
-            try:
-                with transaction.atomic():
-                    # Update user fields
-                    request.user.first_name = form.cleaned_data['first_name']
-                    request.user.last_name = form.cleaned_data['last_name']
-                    request.user.email = form.cleaned_data['email'].lower()
-                    request.user.phone_number = form.cleaned_data.get('phone_number', '')
-                    request.user.save()
-                    
-                    # Update profile
-                    form.save()
-                    
-                    logger.info(f"Profile updated for user: {request.user.username}")
-                    messages.success(request, "Profile updated successfully!")
-                    return redirect('profile')
-                    
-            except Exception as e:
-                logger.error(f"Profile update failed for {request.user.username}: {e}")
-                messages.error(request, "Failed to update profile. Please try again.")
-        else:
-            messages.error(request, "Please correct the errors below.")
-    else:
-        form = ProfileUpdateForm(instance=profile, user=request.user)
-    
-    return render(request, 'registration/profile_update.html', {
-        'form': form,
-        'title': 'Update Profile'
-    })
-
-
-@login_required
-def appointment_list(request):
-    """List user appointments"""
-    appointments = Appointment.objects.filter(user=request.user).order_by('-date', '-time')
-    
-    return render(request, 'appointment/list.html', {
-        'appointments': appointments,
-        'title': 'My Appointments'
-    })
-
-
-def appointment_success(request):
-    """Appointment success page"""
-    return render(request, 'appointment/success.html', {
-        'title': 'Appointment Booked'
-    })
-
+    return render(request, 'profile_page.html', context)
 
 # ------------------ AJAX VIEWS ------------------ #
 def check_email_availability(request):
@@ -431,35 +346,3 @@ def check_email_availability(request):
     return JsonResponse({'available': False})
 
 
-# ------------------ CLASS-BASED VIEWS ------------------ #
-class CustomPasswordResetView(PasswordResetView):
-    """Enhanced password reset view"""
-    form_class = CustomPasswordResetForm
-    template_name = 'registration/password_reset.html'
-    email_template_name = 'registration/password_reset_email.html'
-    success_url = reverse_lazy('password_reset_done')
-    
-    def form_valid(self, form):
-        logger.info(f"Password reset requested for: {form.cleaned_data.get('email')}")
-        return super().form_valid(form)
-
-
-# ------------------ SOCIAL AUTH SUCCESS HANDLER ------------------ #
-def social_auth_success(request):
-    """Handle successful social authentication"""
-    if request.user.is_authenticated:
-        # Ensure profile exists
-        profile, created = UserProfile.objects.get_or_create(user=request.user)
-        
-        # Send welcome email for new social auth users
-        if created:
-            try:
-                send_registration_email(request.user)
-                logger.info(f"Welcome email sent to new social user: {request.user.email}")
-            except Exception as e:
-                logger.error(f"Failed to send social auth welcome email: {e}")
-        
-        logger.info(f"Social auth login: {request.user.username} ({request.user.email})")
-        messages.success(request, f"Welcome {request.user.first_name or request.user.username}!")
-        
-    return redirect('home')

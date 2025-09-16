@@ -126,30 +126,56 @@ python manage.py runserver
 ### 1. Environment Setup for Docker
 
 Update your `.env` file for Docker (change database host):
-
-```env
-# Database Configuration (Docker)
+# ==============================
+# Database Configuration
+# ==============================
 PG_DB=oroshine
 PG_USER=postgres
-PG_PASSWORD=postgres
-PG_HOST=db
+PG_PASSWORD=your_postgres_password
+PG_HOST=127.0.0.1   # Use 'db' if running inside Docker
 PG_PORT=5432
 
+# ==============================
 # Django Configuration
-SECRET_KEY=your-secret-key-here
+# ==============================
+SECRET_KEY=your_secret_key_here
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
 
-# Email Configuration
+# ==============================
+# Email Configuration (Gmail)
+# ==============================
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
 EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-app-password
 
-# Calendar Integration
-NOCODEAPI_CALENDAR_URL=https://v1.nocodeapi.com/your-username/calendar/your-api-key
-```
+# ==============================
+# Calendar Integration (NoCodeAPI)
+# ==============================
+NOCODEAPI_BASE_URL=https://v1.nocodeapi.com/your-username/calendar/your-api-key
+
+# ==============================
+# Google OAuth Configuration
+# ==============================
+ALLAUTH_GOOGLE_CLIENT_ID=your-google-client-id
+ALLAUTH_GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/accounts/google/login/callback/
+SITE_ID=1
+
+# ==============================
+# LinkedIn OAuth Configuration
+# ==============================
+ALLAUTH_LINKEDIN_CLIENT_ID=your-linkedin-client-id
+ALLAUTH_LINKEDIN_CLIENT_SECRET=your-linkedin-client-secret
+
+# ==============================
+# Facebook OAuth Configuration
+# ==============================
+ALLAUTH_FACEBOOK_APP_ID=your-facebook-app-id
+ALLAUTH_FACEBOOK_APP_SECRET=your-facebook-app-secret
+
 
 ### 2. Build and Run
 

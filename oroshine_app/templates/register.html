@@ -1,39 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
+{% load socialaccount %}
+{% load crispy_forms_tags %}
 
 {% include "head_template.html" %}
 
 <body>
-
     {% include "header.html" %}
 
-    {% block content %} 
-
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-
-    {% load crispy_forms_tags %}         
-
-    <!--Register--> 
-    <div class="container py-5">
+    {% block content %}
+    <div class="container py-5 mb-5"> <!-- added bottom margin -->
         <h1>Register</h1>
         <form action="{% url 'register' %}" method="POST">
             {% csrf_token %}
-            {{ register_form|crispy }}                    
-            <button class="btn btn-primary" type="submit">Register</button>
-        </form>
-        <div>
-            <p class="text-center">If you already have an account, <a href="{% url 'login' %}">login</a> instead.</p>
-        </div>
-        <br>
-    </div>
+            {{ register_form|crispy }}
 
+            <!-- Password strength meter -->
+            <div class="mt-2">
+                <label class="form-label">Password strength</label>
+                <div class="progress">
+                    <div id="password-strength-bar" class="progress-bar" role="progressbar"
+                        style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+                <small id="password-strength-text" class="form-text text-muted"></small>
+            </div>
+
+            <button class="btn btn-primary mt-3" type="submit">Register</button>
+        </form>
+
+        <div class="mt-4 text-center">
+            <p>Or sign up with:</p>
+            <a href="{% provider_login_url 'google' %}" class="btn btn-danger">Google</a>
+            <a href="{% provider_login_url 'facebook' %}" class="btn btn-primary">Facebook</a>
+            <a href="{% provider_login_url 'linkedin_oauth2' %}" class="btn btn-info">LinkedIn</a>
+            <a href="{% provider_login_url 'github' %}" class="btn btn-dark">GitHub</a>
+        </div>
+
+        <p class="text-center mt-3">
+            Already have an account? <a href="{% url 'login' %}">Login</a>
+        </p>
+    </div>
     {% endblock %}
 
     {% include "footer.html" %}
 
+    <script>
+    $(document).ready(function () {
+        // Email availability check
+        $(document).on("blur", "#id_email", function () {
+            let email = $(this).val();
+            if (email.length > 0) {
+                $.ajax({
+                    url: "{% url 'check_email_availability' %}",
+                    data: { "email": email },
+                    dataType: "json",
+                    success: function (data) {
+                        if (data.available) {
+                            $("#email-status").text("✅ Email is available")
+                                .removeClass("text-danger").addClass("text-success");
+                        } else {
+                            $("#email-status").text("❌ Email already exists")
+                                .removeClass("text-success").addClass("text-danger");
+                        }
+                    }
+                });
+            } else {
+                $("#email-status").text("");
+            }
+        });
+
+        // Password strength meter
+        $("#id_password1").on("input", function () {
+            let val = $(this).val();
+            let strength = 0;
+
+            if (val.length >= 8) strength++;
+            if (/[A-Z]/.test(val)) strength++;
+            if (/[0-9]/.test(val)) strength++;
+            if (/[^A-Za-z0-9]/.test(val)) strength++;
+
+            let strengthPercent = (strength / 4) * 100;
+            let statusText = ["Too short", "Weak", "Medium", "Strong", "Very Strong"];
+            let colors = ["bg-danger", "bg-danger", "bg-warning", "bg-info", "bg-success"];
+
+            let index = strength; // 0-4
+            $("#password-strength-bar")
+                .css("width", strengthPercent + "%")
+                .removeClass("bg-danger bg-warning bg-info bg-success")
+                .addClass(colors[index])
+                .attr("aria-valuenow", strengthPercent);
+
+            $("#password-strength-text").text(statusText[index]);
+        });
+    });
+    </script>
 </body>
 </html>

@@ -153,46 +153,107 @@
                 <div class="col-lg-6">
                     <div class="appointment-form h-100 d-flex flex-column justify-content-center text-center p-5 wow zoomIn" data-wow-delay="0.6s">
                         <h1 class="text-white mb-4">Make Appointment</h1>
-                        <form>
+                        <form method="POST" action="{% url 'appointment' %}">
+                            {% csrf_token %}
                             <div class="row g-3">
+
+                                <!-- Service Dropdown -->
                                 <div class="col-12 col-sm-6">
-                                    <select class="form-select bg-light border-0" style="height: 55px;">
-                                        <option selected>Select A Service</option>
-                                        <option value="1">Service 1</option>
-                                        <option value="2">Service 2</option>
-                                        <option value="3">Service 3</option>
+                                    <select name="service" class="form-select bg-light border-0" style="height: 55px;" required>
+                                        <option value="" selected disabled>Select A Service</option>
+                                        <option value="General Checkup">General Checkup</option>
+                                        <option value="Teeth Cleaning">Teeth Cleaning</option>
+                                        <option value="Dental Filling">Dental Filling</option>
+                                        <option value="Tooth Extraction">Tooth Extraction</option>
+                                        <option value="Teeth Whitening">Teeth Whitening</option>
+                                        <option value="Orthodontics">Orthodontics</option>
                                     </select>
+                                    {% if form.service.errors %}
+                                    <div class="text-danger small mt-1">{{ form.service.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
+
+                                <!-- Doctor Dropdown -->
                                 <div class="col-12 col-sm-6">
-                                    <select class="form-select bg-light border-0" style="height: 55px;">
-                                        <option selected>Select Doctor</option>
-                                        <option value="1">Doctor 1</option>
-                                        <option value="2">Doctor 2</option>
-                                        <option value="3">Doctor 3</option>
+                                    <select name="doctor_email" class="form-select bg-light border-0"
+                                        style="height: 55px;" required>
+                                        <option value="" selected disabled>Select Doctor</option>
+                                        <option value="nikhilchandurkar24@gmail.com">Dr. Worst Developer</option>
+                                        <option value="nikhilchandurkar125@gmail.com">Dr. Johnson</option>
+                                        <option value="nikhilchandurkar125@gmail.com">Dr. Williams</option>
+                                        <option value="nikhilchandurkar125@gmail.com">Dr. Brown</option>
                                     </select>
+                                    {% if form.doctor.errors %}
+                                    <div class="text-danger small mt-1">{{ form.doctor.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
+
+                                <!-- Name -->
                                 <div class="col-12 col-sm-6">
-                                    <input type="text" class="form-control bg-light border-0" placeholder="Your Name" style="height: 55px;">
+                                    <input type="text" name="name"
+                                        class="form-control bg-light border-0 {% if form.name.errors %}is-invalid{% endif %}"
+                                        placeholder="Your Name" style="height: 55px;"
+                                        value="{{ form.name.value|default:'' }}" required>
+                                    {% if form.name.errors %}
+                                    <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
+
+                                <!-- Email -->
                                 <div class="col-12 col-sm-6">
-                                    <input type="email" class="form-control bg-light border-0" placeholder="Your Email" style="height: 55px;">
+                                    <input type="email" name="email"
+                                        class="form-control bg-light border-0 {% if form.email.errors %}is-invalid{% endif %}"
+                                        placeholder="Your Email" style="height: 55px;"
+                                        value="{{ form.email.value|default:'' }}" required>
+                                    {% if form.email.errors %}
+                                    <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
+
+                                <!-- Date -->
                                 <div class="col-12 col-sm-6">
-                                    <div class="date" id="date1" data-target-input="nearest">
-                                        <input type="date"
-                                            class="form-control bg-light border-0 datetimepicker-input"
-                                            placeholder="Appointment Date" data-target="#date1" data-toggle="datetimepicker" style="height: 55px;">
-                                    </div>
+                                    <input type="date" name="date"
+                                        class="form-control bg-light border-0 {% if form.date.errors %}is-invalid{% endif %}"
+                                        style="height: 55px;" value="{{ form.date.value|default:'' }}"
+                                        min="{% now 'Y-m-d' %}" required>
+                                    {% if form.date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.date.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
+
+                                <!-- Time -->
                                 <div class="col-12 col-sm-6">
-                                    <div class="time" id="time1" data-target-input="nearest">
-                                        <input type="time"
-                                            class="form-control bg-light border-0 datetimepicker-input"
-                                            placeholder="Appointment Time" data-target="#time1" data-toggle="datetimepicker" style="height: 55px;">
-                                    </div>
+                                    <input type="time" name="time"
+                                        class="form-control bg-light border-0 {% if form.time.errors %}is-invalid{% endif %}"
+                                        style="height: 55px;" value="{{ form.time.value|default:'' }}" required>
+                                    {% if form.time.errors %}
+                                    <div class="text-danger small mt-1">{{ form.time.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
+
+                                <!-- Non-field Errors -->
+                                {% if form.non_field_errors %}
                                 <div class="col-12">
-                                    <button class="btn btn-dark w-100 py-3" type="submit">Make Appointment</button>
+                                    <div class="alert alert-danger mt-2">
+                                        {{ form.non_field_errors }}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Message -->
+                                <div class="col-12">
+                                    <textarea name="message" class="form-control bg-light border-0" rows="3"
+                                        placeholder="Additional Message (Optional)">{{ form.message.value|default:'' }}</textarea>
+                                    {% if form.message.errors %}
+                                    <div class="text-danger small mt-1">{{ form.message.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Submit -->
+                                <div class="col-12">
+                                    <button class="btn btn-dark w-100 py-3" type="submit">
+                                        <i class="fas fa-calendar-plus me-2"></i>Make Appointment
+                                    </button>
                                 </div>
                             </div>
                         </form>
@@ -481,7 +542,7 @@
                         <div class="team-text position-relative bg-light text-center rounded-bottom p-4 pt-5">
                             <h4 class="mb-2">Dr. John Doe</h4>
                             <p class="text-primary mb-0">Implant Surgeon</p>
-                        </div>
+                        </div>  
                     </div>
                 </div>
             </div>
@@ -497,7 +558,7 @@
     </div>
     <!-- Newsletter End -->
     
-    {% include "footer.html" %}
+     {% include "footer.html" %}
     
 </body>
 
