@@ -1,0 +1,105 @@
+[2025-10-14 15:18:56] ============================================================
+[2025-10-14 15:18:56] OroShine DentCare - Static Libraries Downloader
+[2025-10-14 15:18:56] Started at: 2025-10-14 15:18:56
+[2025-10-14 15:18:56] ============================================================
+[2025-10-14 15:18:56] 
+[2025-10-14 15:18:56] [INFO] Creating directory structure...
+[2025-10-14 15:18:56] [SUCCESS] All directories created
+[2025-10-14 15:18:56] 
+[2025-10-14 15:18:56] ============================================================
+[2025-10-14 15:18:56] DOWNLOADING: CORE LIBRARIES
+[2025-10-14 15:18:56] ============================================================
+[2025-10-14 15:18:56] [INFO] Downloading jQuery 3.7.1...
+[2025-10-14 15:18:56]        URL: https://code.jquery.com/jquery-3.7.1.min.js
+[2025-10-14 15:18:57] [SUCCESS] jQuery 3.7.1 downloaded successfully (87533 bytes)
+[2025-10-14 15:18:57] [INFO] Downloading Bootstrap 5.3.3 JS...
+[2025-10-14 15:18:57]        URL: https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js
+[2025-10-14 15:19:00] [SUCCESS] Bootstrap 5.3.3 JS downloaded successfully (80721 bytes)
+[2025-10-14 15:19:00] [INFO] Downloading Bootstrap 5.3.3 CSS...
+[2025-10-14 15:19:00]        URL: https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css
+[2025-10-14 15:19:01] [SUCCESS] Bootstrap 5.3.3 CSS downloaded successfully (232803 bytes)
+[2025-10-14 15:19:01] 
+[2025-10-14 15:19:01] ============================================================
+[2025-10-14 15:19:01] DOWNLOADING: ANIMATION & EFFECTS
+[2025-10-14 15:19:01] ============================================================
+[2025-10-14 15:19:01] [INFO] Downloading WOW.js...
+[2025-10-14 15:19:01]        URL: https://cdn.jsdelivr.net/npm/wowjs@1.1.3/dist/wow.min.js
+[2025-10-14 15:19:01] [SUCCESS] WOW.js downloaded successfully (8415 bytes)
+[2025-10-14 15:19:01] [INFO] Downloading jQuery Easing...
+[2025-10-14 15:19:01]        URL: https://cdn.jsdelivr.net/npm/jquery.easing@1.4.1/jquery.easing.min.js
+[2025-10-14 15:19:01] [SUCCESS] jQuery Easing downloaded successfully (2532 bytes)
+[2025-10-14 15:19:01] [INFO] Downloading Waypoints...
+[2025-10-14 15:19:01]        URL: https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/jquery.waypoints.min.js
+[2025-10-14 15:19:02] [SUCCESS] Waypoints downloaded successfully (8833 bytes)
+[2025-10-14 15:19:02] [INFO] Downloading Animate CSS...
+[2025-10-14 15:19:02]        URL: https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css
+[2025-10-14 15:19:02] [SUCCESS] Animate CSS downloaded successfully (71750 bytes)
+[2025-10-14 15:19:02] 
+[2025-10-14 15:19:02] ============================================================
+[2025-10-14 15:19:02] DOWNLOADING: CAROUSEL
+[2025-10-14 15:19:02] ============================================================
+[2025-10-14 15:19:02] [INFO] Downloading Owl Carousel JS...
+[2025-10-14 15:19:02]        URL: https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js
+[2025-10-14 15:19:02] [SUCCESS] Owl Carousel JS downloaded successfully (44342 bytes)
+[2025-10-14 15:19:02] [INFO] Downloading Owl Carousel CSS...
+[2025-10-14 15:19:02]        URL: https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css
+[2025-10-14 15:19:02] [SUCCESS] Owl Carousel CSS downloaded successfully (3351 bytes)
+[2025-10-14 15:19:02] 
+[2025-10-14 15:19:02] ============================================================
+[2025-10-14 15:19:02] DOWNLOADING: DATE/TIME PICKER
+[2025-10-14 15:19:02] ============================================================
+[2025-10-14 15:19:02] [INFO] Downloading Moment.js...
+[2025-10-14 15:19:02]        URL: https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js
+[2025-10-14 15:19:02] [SUCCESS] Moment.js downloaded successfully (58024 bytes)
+[2025-10-14 15:19:02] [INFO] Downloading Moment Timezone...
+[2025-10-14 15:19:02]        URL: https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.43/moment-timezone.min.js
+[2025-10-14 15:19:03] [SUCCESS] Moment Timezone downloaded successfully (6998 bytes)
+[2025-10-14 15:19:03] [INFO] Downloading Tempus Dominus JS...
+[2025-10-14 15:19:03]        URL: https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.1.2/js/tempusdominus-bootstrap-4.min.js
+[2025-10-14 15:19:03] [SUCCESS] Tempus Dominus JS downloaded successfully (56879 bytes)
+[2025-10-14 15:19:03] [INFO] Downloading Tempus Dominus CSS...
+[2025-10-14 15:19:03]        URL: https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.1.2/css/tempusdominus-bootstrap-4.min.css
+[2025-10-14 15:19:04] [SUCCESS] Tempus Dominus CSS downloaded successfully (9064 bytes)
+[2025-10-14 15:19:04] 
+[2025-10-14 15:19:04] ============================================================
+[2025-10-14 15:19:04] DOWNLOADING: BEFORE/AFTER SLIDER
+[2025-10-14 15:19:04] ============================================================
+[2025-10-14 15:19:04] [INFO] Downloading TwentyTwenty Move Event...
+[2025-10-14 15:19:04]        URL: https://cdn.jsdelivr.net/gh/zurb/twentytwenty/js/jquery.event.move.js
+[2025-10-14 15:19:05] [SUCCESS] TwentyTwenty Move Event downloaded successfully (14530 bytes)
+[2025-10-14 15:19:05] [INFO] Downloading TwentyTwenty JS...
+[2025-10-14 15:19:05]        URL: https://cdn.jsdelivr.net/gh/zurb/twentytwenty/js/jquery.twentytwenty.js
+[2025-10-14 15:19:07] [SUCCESS] TwentyTwenty JS downloaded successfully (5414 bytes)
+[2025-10-14 15:19:07] [INFO] Downloading TwentyTwenty CSS...
+[2025-10-14 15:19:07]        URL: https://cdn.jsdelivr.net/gh/zurb/twentytwenty/css/twentytwenty.css
+[2025-10-14 15:19:09] [SUCCESS] TwentyTwenty CSS downloaded successfully (6537 bytes)
+[2025-10-14 15:19:09] 
+[2025-10-14 15:19:09] ============================================================
+[2025-10-14 15:19:09] DOWNLOADING: ICON FONTS
+[2025-10-14 15:19:09] ============================================================
+[2025-10-14 15:19:09] [INFO] Downloading FontAwesome 5.10.0 CSS...
+[2025-10-14 15:19:09]        URL: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css
+[2025-10-14 15:19:10] [SUCCESS] FontAwesome 5.10.0 CSS downloaded successfully (56517 bytes)
+[2025-10-14 15:19:10] [INFO] Downloading FontAwesome Solid Webfont...
+[2025-10-14 15:19:10]        URL: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/webfonts/fa-solid-900.woff2
+[2025-10-14 15:19:10] [SUCCESS] FontAwesome Solid Webfont downloaded successfully (75392 bytes)
+[2025-10-14 15:19:10] [INFO] Downloading FontAwesome Brands Webfont...
+[2025-10-14 15:19:10]        URL: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/webfonts/fa-brands-400.woff2
+[2025-10-14 15:19:10] [SUCCESS] FontAwesome Brands Webfont downloaded successfully (74760 bytes)
+[2025-10-14 15:19:10] [INFO] Downloading Bootstrap Icons CSS...
+[2025-10-14 15:19:10]        URL: https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css
+[2025-10-14 15:19:10] [SUCCESS] Bootstrap Icons CSS downloaded successfully (98255 bytes)
+[2025-10-14 15:19:10] [INFO] Downloading Bootstrap Icons Webfont...
+[2025-10-14 15:19:10]        URL: https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/fonts/bootstrap-icons.woff2
+[2025-10-14 15:19:11] [SUCCESS] Bootstrap Icons Webfont downloaded successfully (130396 bytes)
+[2025-10-14 15:19:11] 
+[2025-10-14 15:19:11] ============================================================
+[2025-10-14 15:19:11] DOWNLOAD SUMMARY
+[2025-10-14 15:19:11] ============================================================
+[2025-10-14 15:19:11] Successful: 21
+[2025-10-14 15:19:11] Failed: 0
+[2025-10-14 15:19:11] Total: 21
+[2025-10-14 15:19:11] ============================================================
+[2025-10-14 15:19:11] ✅ All libraries downloaded successfully!
+[2025-10-14 15:19:11] Log file: D:\web_dev\oroshine\oroshine_app\oroshine_webapp\static\download_log.txt
+[2025-10-14 15:19:11] 
