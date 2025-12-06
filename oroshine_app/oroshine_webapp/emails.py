@@ -1,90 +1,87 @@
-
-from django.core.mail import send_mail
+import logging
+from datetime import datetime
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from django.conf import settings
-from datetime import datetime
-import logging
-from django.core.mail import EmailMultiAlternatives, get_connection
 
 logger = logging.getLogger(__name__)
 
-def send_appointment_email(appointment, subject="Appointment Booked", template_name="appointment_confirmation.html"):
-    """
-    Sends a dynamic email with appointment details using Gmail SMTP.
-    Template path: oroshine/oroshine_app/templates/appointment_confirmation.html
-    """
+
+# ------------------------------------------
+# SEND APPOINTMENT EMAILS (ADMIN + USER)
+# ------------------------------------------
+def send_appointment_emails(appointment):
     context = {
-        'appointment': appointment,
-        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "appointment": appointment,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
-    html_message = render_to_string(template_name, context)
-    plain_message = strip_tags(html_message)
-    recipient_list = [appointment.email, appointment.doctor_email]
 
-    try:
-        print(f"Preparing to send email to: {recipient_list} with subject: '{subject}'")
-        logger.info(f"Preparing email to: {recipient_list}")
+    # -------------------- ADMIN EMAIL --------------------
+    admin_html = render_to_string("emails/appointment_admin.html", context)
+    admin_text = strip_tags(admin_html)
 
-        # Create and send email
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body=plain_message,
-            from_email=settings.EMAIL_HOST_USER,
-            to=recipient_list
-        )
-        email.attach_alternative(html_message, "text/html")
-        email.send(fail_silently=False)
+    admin_msg = EmailMultiAlternatives(
+        subject="New Appointment Booking - OroShine Dental Care",
+        body=admin_text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=["admin@oroshineclinic.com"],
+    )
+    admin_msg.attach_alternative(admin_html, "text/html")
+    admin_msg.send()
 
-        print(f"Email sent successfully to {recipient_list}")
-        logger.info(f"Email sent to {recipient_list}")
+    # -------------------- USER EMAIL ---------------------
+    user_html = render_to_string("emails/appointment_user.html", context)
+    user_text = strip_tags(user_html)
 
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-        logger.error(f"Error sending email: {e}")
-        raise Exception(f"Failed to send email: {e}")
+    user_msg = EmailMultiAlternatives(
+        subject="Your Appointment Confirmation - OroShine Dental Care",
+        body=user_text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[appointment.email],
+    )
+    user_msg.attach_alternative(user_html, "text/html")
+    user_msg.send()
 
-    """
-    Sends a dynamic email with appointment details using Gmail SMTP.
-    Template path: oroshine/oroshine_app/templates/appointment_confirmation.html
-    """
+    logger.info("Appointment emails sent successfully")
+
+
+# ------------------------------------------
+# SEND CONTACT FORM EMAILS
+# ------------------------------------------
+def send_contact_emails(contact, user_ip):
     context = {
-        'appointment': appointment,
-        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "name": contact.name,
+        "email": contact.email,
+        "subject": contact.subject,
+        "message": contact.message,
+        "ip": user_ip,
     }
-    html_message = render_to_string(template_name, context)
-    plain_message = strip_tags(html_message)
-    recipient_list = [appointment.email, appointment.doctor_email]
 
-    try:
-        print(f"Preparing to send email to: {recipient_list} with subject: '{subject}'")
-        logger.info(f"Preparing email to: {recipient_list}")
+    # -------------------- ADMIN EMAIL --------------------
+    admin_html = render_to_string("emails/contact_admin.html", context)
+    admin_text = strip_tags(admin_html)
 
-        # Debug SMTP connection
-        with get_connection(
-            backend='django.core.mail.backends.smtp.EmailBackend',
-            host=settings.EMAIL_HOST,
-            port=settings.EMAIL_PORT,
-            username=settings.EMAIL_HOST_USER,
-            password=settings.EMAIL_HOST_PASSWORD,
-            use_tls=settings.EMAIL_USE_TLS,
-        ) as connection:
-            print("SMTP connection established")
-            logger.info("SMTP connection established")
+    admin_msg = EmailMultiAlternatives(
+        subject=f"📩 New Contact Form Submission — {contact.name}",
+        body=admin_text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[settings.ADMIN_EMAIL],
+    )
+    admin_msg.attach_alternative(admin_html, "text/html")
+    admin_msg.send()
 
-            email = EmailMultiAlternatives(
-                subject=subject,
-                body=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=recipient_list,
-            )
-            email.attach_alternative(html_message, "text/html")
-            email.send(fail_silently=False)
+    # -------------------- USER EMAIL ---------------------
+    user_html = render_to_string("emails/contact_user.html", context)
+    user_text = strip_tags(user_html)
 
-        print(f"Email sent successfully to {recipient_list}")
-        logger.info(f"Email sent to {recipient_list}")
+    user_msg = EmailMultiAlternatives(
+        subject="Thank You for Contacting OroShine Dental Clinic",
+        body=user_text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[contact.email],
+    )
+    user_msg.attach_alternative(user_html, "text/html")
+    user_msg.send()
 
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-        logger.error(f"Error sending email: {e}")
-        raise Exception(f"Failed to send email: {e}")
+    logger.info("Contact form emails sent successfully")

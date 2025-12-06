@@ -1,3 +1,5 @@
+{% load static %}
+{% load humanize %}
 <!-- Footer Start -->
 <div class="container-fluid bg-dark text-light py-5 wow fadeInUp" data-wow-delay="0.3s" style="margin-top: -75px;">
     <div class="container pt-5">
@@ -56,23 +58,32 @@
 </div>
 <!-- Footer End -->
 
-
 <!-- Back to Top -->
 <a href="" class="btn btn-lg btn-primary btn-lg-square rounded back-to-top"><i class="bi bi-arrow-up"></i></a>
 
+{% load compress %}
+{% compress js %}
+<!-- jQuery (needed for many plugins) -->
+<script src="{% static 'lib/jquery/jquery.min.js' %}" defer></script>
 
-<!-- JavaScript Libraries -->
-<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="static\lib\wow\wow.min.js"></script>
-<script src="static\lib\easing\easing.min.js"></script>
-<script src="static\lib\waypoints\waypoints.min.js"></script>
-<script src="static\lib\owlcarousel\owl.carousel.min.js"></script>
-<script src="static\lib\tempusdominus\js\moment.min.js"></script>
-<script src="static\lib\tempusdominus\js\moment-timezone.min.js"></script>
-<script src="static\lib\tempusdominus\js\tempusdominus-bootstrap-4.min.js"></script>
-<script src="static\lib\twentytwenty\jquery.event.move.js"></script>
-<script src="static\lib\twentytwenty\jquery.twentytwenty.js"></script>
+<!-- Bootstrap 5 Bundle -->
+<script src="{% static 'js/bootstrap.bundle.min.js' %}" defer></script>
 
-<!-- Template Javascript -->
-<script src="static\js\main.js"></script>
+<!-- Animation & Utility Libraries -->
+<script src="{% static 'lib/wow/wow.min.js' %}" defer></script>
+<script src="{% static 'lib/easing/jquery.easing.min.js' %}" defer></script>
+<script src="{% static 'lib/waypoints/jquery.waypoints.min.js' %}" defer></script>
+<script src="{% static 'lib/owlcarousel/owl.carousel.min.js' %}" defer></script>
+
+<!-- Tempusdominus (requires jQuery + Moment) -->
+<script src="{% static 'lib/tempusdominus/js/moment.min.js' %}" defer></script>
+<script src="{% static 'lib/tempusdominus/js/moment-timezone.min.js' %}" defer></script>
+<script src="{% static 'lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js' %}" defer></script>
+
+<!-- Comparison Slider -->
+<script src="{% static 'lib/twentytwenty/jquery.event.move.js' %}" defer></script>
+<script src="{% static 'lib/twentytwenty/jquery.twentytwenty.js' %}" defer></script>
+
+<!-- Main Custom JS -->
+<script src="{% static 'js/main.js' %}" defer></script>
+{% endcompress %}
