@@ -12,6 +12,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -22,6 +25,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
           tags: nikhil2523/oroshine:latest,nikhil2523/oroshine:${{ github.sha }}
 
@@ -29,16 +33,10 @@ jobs:
     needs: build
     runs-on: self-hosted
     steps:
-      - name: SSH to EC2 and Deploy
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          script: |
-            cd ~/oroshine_project  # path on EC2 where repo is
-            git reset --hard
-            git pull origin main
-            docker pull nikhil2523/oroshine:latest
-            docker compose down
-            docker compose up -d
+      - name: Pull latest image and deploy
+        run: |
+          cd ~/oroshine_project
+          docker pull nikhil2523/oroshine:latest
+          docker compose -f docker-compose.prod.yaml down
+          docker compose -f docker-compose.prod.yaml up -d --remove-orphans
+          docker image prune -f
