@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  db:
+    container_name: db
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  web:
+    container_name: oroshineapp
+    image: ${DOCKERHUB_USERNAME}/oroshine_dental:latest
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      PG_DB: ${POSTGRES_DB}
+      PG_USER: ${POSTGRES_USER}
+      PG_PASSWORD: ${POSTGRES_PASSWORD}
+      PG_HOST: db
+      PG_PORT: 5432
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: "False"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

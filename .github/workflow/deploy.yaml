@@ -1,0 +1,153 @@
+name: Deploy OroShine to Production
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  IMAGE_NAME: oroshine_dental
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          # This ensures download_static.sh runs during build
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            # 1. Setup Directory
+            mkdir -p /home/${{ secrets.EC2_USERNAME }}/oroshine
+            cd /home/${{ secrets.EC2_USERNAME }}/oroshine
+
+            # 2. Create docker-compose.prod.yml
+            # We create this fresh every time to ensure it matches your latest config
+            cat > docker-compose.prod.yml <<EOF
+            version: "3.9"
+            services:
+              db:
+                container_name: db
+                image: postgres:15
+                restart: always
+                environment:
+                  POSTGRES_DB: oroshine
+                  POSTGRES_USER: postgres
+                  POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
+                volumes:
+                  - pgdata:/var/lib/postgresql/data
+              
+              redis:
+                container_name: redis
+                image: redis:alpine
+                restart: always
+              
+              web:
+                container_name: oroshineapp
+                image: ${{ secrets.DOCKERHUB_USERNAME }}/oroshine_dental:latest
+                restart: always
+                ports:
+                  - "8000:8000"
+                env_file:
+                  - .env
+                depends_on:
+                  - db
+                  - redis
+            volumes:
+              pgdata:
+            EOF
+
+            # 3. Create SECURE .env file
+            echo "Generating production .env file..."
+            
+            # --- DATABASE ---
+            echo "PG_DB=oroshine" > .env
+            echo "PG_USER=postgres" >> .env
+            echo "PG_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+            echo "PG_HOST=db" >> .env
+            echo "PG_PORT=5432" >> .env
+
+            # --- REDIS ---
+            echo "REDIS_HOST=redis" >> .env
+            echo "REDIS_PORT=6379" >> .env
+            echo "REDIS_DB=1" >> .env
+
+            # --- DJANGO ---
+            echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
+            echo "DEBUG=False" >> .env
+            echo "ALLOWED_HOSTS=localhost,127.0.0.1,${{ secrets.EC2_HOST }}" >> .env
+
+            # --- EMAIL ---
+            echo "EMAIL_HOST=smtp.gmail.com" >> .env
+            echo "EMAIL_PORT=587" >> .env
+            echo "EMAIL_USE_TLS=True" >> .env
+            echo "EMAIL_HOST_USER=nikhilchandurkar24@gmail.com" >> .env
+            echo "EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}" >> .env
+
+            # --- INTEGRATIONS ---
+            echo "NOCODEAPI_BASE_URL=https://v1.nocodeapi.com/nikhilchandurkar24/calendar/rOPZYmPKngwyeWba" >> .env
+            
+            # --- AUTH (GOOGLE) ---
+            echo "ALLAUTH_GOOGLE_CLIENT_ID=917717820152-m2ks722ts8caadu0887fsqi48d067rg6.apps.googleusercontent.com" >> .env
+            echo "ALLAUTH_GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_SECRET }}" >> .env
+            echo "GOOGLE_REDIRECT_URI=http://${{ secrets.EC2_HOST }}:8000/accounts/google/login/callback/" >> .env
+            echo "SITE_ID=1" >> .env
+
+            # --- AUTH (LINKEDIN) ---
+            echo "ALLAUTH_LINKEDIN_CLIENT_ID=77wngjine0ykmc" >> .env
+            echo "ALLAUTH_LINKEDIN_CLIENT_SECRET=${{ secrets.LINKEDIN_SECRET }}" >> .env
+
+            # --- AUTH (FACEBOOK) ---
+            echo "ALLAUTH_FACEBOOK_APP_ID=2022337965239613" >> .env
+            echo "ALLAUTH_FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_SECRET }}" >> .env
+
+            # --- AUTH (GITHUB) ---
+            echo "ALLAUTH_GITHUB_CLIENT_ID=Ov23liPNmzbrUL5WIxpM" >> .env
+            echo "ALLAUTH_GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_SECRET }}" >> .env
+
+
+            # 4. Pull and Restart (This is the part that was cut off in your snippet)
+            echo "Pulling latest image..."
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/oroshine_dental:latest
+            
+            echo "Stopping old containers..."
+            docker-compose -f docker-compose.prod.yml down
+            
+            echo "Starting new containers..."
+            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+            
+            echo "Cleaning up unused images..."
+            docker image prune -af
