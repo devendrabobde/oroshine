@@ -1,4 +1,4 @@
-name: Deploy Django App
+name: Deploy OroShine Dental App
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
 
 jobs:
   build:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,23 +29,49 @@ jobs:
           file: ./oroshine_app/Dockerfile
           push: true
           tags: nikhil2523/oroshine:latest,nikhil2523/oroshine:${{ github.sha }}
+          cache-from: type=registry,ref=nikhil2523/oroshine:latest
+          cache-to: type=inline
 
   deploy:
+    name: Deploy to EC2
     needs: build
     runs-on: self-hosted
     steps:
-      - name: Checkout code (for docker-compose.prod.yaml)
+      - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Copy docker-compose to EC2 project directory
+      - name: Copy files to project directory
         run: |
-          cp docker-compose.prod.yaml ~/oroshine_project/
-          cp -r nginx ~/oroshine_project/ || echo "nginx folder not found, skipping"
+          mkdir -p ~/oroshine_project
+          cp -r docker-compose.prod.yaml ~/oroshine_project/
+          cp -r nginx ~/oroshine_project/ 2>/dev/null || echo "No nginx folder, skipping"
       
-      - name: Pull latest image and deploy
+      - name: Pull and Deploy
         run: |
           cd ~/oroshine_project
+          
+          # Pull latest image
           docker pull nikhil2523/oroshine:latest
+          
+          # Stop old containers
           docker compose -f docker-compose.prod.yaml down
+          
+          # Start new containers
           docker compose -f docker-compose.prod.yaml up -d --remove-orphans
+          
+          # Wait for containers to be healthy
+          sleep 10
+          
+          # Run migrations
+          docker compose -f docker-compose.prod.yaml exec -T web python manage.py migrate --noinput || true
+          
+          # Collect static files
+          docker compose -f docker-compose.prod.yaml exec -T web python manage.py collectstatic --noinput || true
+          
+          # Clean up old images
           docker image prune -f
+          
+      - name: Check deployment status
+        run: |
+          cd ~/oroshine_project
+          docker compose -f docker-compose.prod.yaml ps
