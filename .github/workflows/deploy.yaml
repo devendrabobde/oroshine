@@ -24,8 +24,8 @@ jobs:
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./oroshine_app
+          file: ./oroshine_app/Dockerfile
           push: true
           tags: nikhil2523/oroshine:latest,nikhil2523/oroshine:${{ github.sha }}
 
@@ -33,6 +33,14 @@ jobs:
     needs: build
     runs-on: self-hosted
     steps:
+      - name: Checkout code (for docker-compose.prod.yaml)
+        uses: actions/checkout@v4
+      
+      - name: Copy docker-compose to EC2 project directory
+        run: |
+          cp docker-compose.prod.yaml ~/oroshine_project/
+          cp -r nginx ~/oroshine_project/ || echo "nginx folder not found, skipping"
+      
       - name: Pull latest image and deploy
         run: |
           cd ~/oroshine_project
