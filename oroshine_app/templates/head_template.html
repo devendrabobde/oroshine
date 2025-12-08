@@ -1,28 +1,30 @@
 {% load compress %}
 {% load static %}
-{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- Preconnect to external domains -->
+
+    <!-- Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    
-    <!-- Critical CSS inline (fonts) -->
-    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-    
-    <title>OroShine Dental Clinic - Pricing & Services</title>
-    <meta name="description" content="Affordable dental services, treatments, and pricing at OroShine Dental Clinic. Book your appointment today.">
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
 
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+
+    <title>OroShine Dental Clinic - Pricing & Services</title>
+    <meta name="description" content="Affordable dental services, treatments, and pricing at OroShine Dental Clinic.">
+
+    
     {% compress css %}
         <!-- Icon Libraries -->
         <link rel="stylesheet" href="{% static 'lib/fontawesome/css/all.min.css' %}">
         <link rel="stylesheet" href="{% static 'lib/bootstrap-icons/bootstrap-icons.css' %}">
         <link rel="stylesheet" href="{% static 'lib/owlcarousel/assets/owl.carousel.min.css' %}">
+        <link rel="stylesheet" href="{% static 'lib/owlcarousel/assets/owl.theme.default.min.css' %}">
         <link rel="stylesheet" href="{% static 'lib/animate/animate.min.css' %}">
         <link rel="stylesheet" href="{% static 'lib/tempusdominus/css/tempus-dominus.min.css' %}">
         <link rel="stylesheet" href="{% static 'lib/twentytwenty/twentytwenty.css' %}">
@@ -30,3 +32,5 @@
         <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% endcompress %}
 </head>
+
+

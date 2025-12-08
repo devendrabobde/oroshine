@@ -1,9 +1,13 @@
+
 {% load static %}
 {% load humanize %}
+{% load compress %}
+
 <!-- Footer Start -->
 <div class="container-fluid bg-dark text-light py-5 wow fadeInUp" data-wow-delay="0.3s" style="margin-top: -75px;">
     <div class="container pt-5">
         <div class="row g-5 pt-4">
+
             <div class="col-lg-3 col-md-6">
                 <h3 class="text-white mb-4">Quick Links</h3>
                 <div class="d-flex flex-column justify-content-start">
@@ -14,6 +18,7 @@
                     <a class="text-light" href="{% url 'contact' %}"><i class="bi bi-arrow-right text-primary me-2"></i>Contact Us</a>
                 </div>
             </div>
+
             <div class="col-lg-3 col-md-6">
                 <h3 class="text-white mb-4">Popular Links</h3>
                 <div class="d-flex flex-column justify-content-start">
@@ -24,33 +29,40 @@
                     <a class="text-light" href="{% url 'contact' %}"><i class="bi bi-arrow-right text-primary me-2"></i>Contact Us</a>
                 </div>
             </div>
+
             <div class="col-lg-3 col-md-6">
                 <h3 class="text-white mb-4">Get In Touch</h3>
                 <p class="mb-2"><i class="bi bi-geo-alt text-primary me-2"></i>123 Street, Diva, Navi Mumbai, Maharashtra, India</p>
                 <p class="mb-2"><i class="bi bi-envelope-open text-primary me-2"></i>info@oroshinedentalcare.com</p>
                 <p class="mb-0"><i class="bi bi-telephone text-primary me-2"></i>+91 98211 51968</p>
             </div>
+
             <div class="col-lg-3 col-md-6">
                 <h3 class="text-white mb-4">Follow Us</h3>
                 <div class="d-flex">
-                    <a class="btn btn-lg btn-primary btn-lg-square rounded me-2" href="#"><i class="fab fa-twitter fw-normal"></i></a>
-                    <a class="btn btn-lg btn-primary btn-lg-square rounded me-2" href="#"><i class="fab fa-facebook-f fw-normal"></i></a>
-                    <a class="btn btn-lg btn-primary btn-lg-square rounded me-2" href="#"><i class="fab fa-linkedin-in fw-normal"></i></a>
-                    <a class="btn btn-lg btn-primary btn-lg-square rounded" href="#"><i class="fab fa-instagram fw-normal"></i></a>
+                    <a class="btn btn-lg btn-primary btn-lg-square rounded me-2" href="#"><i class="fab fa-twitter"></i></a>
+                    <a class="btn btn-lg btn-primary btn-lg-square rounded me-2" href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a class="btn btn-lg btn-primary btn-lg-square rounded me-2" href="#"><i class="fab fa-linkedin-in"></i></a>
+                    <a class="btn btn-lg btn-primary btn-lg-square rounded" href="#"><i class="fab fa-instagram"></i></a>
                 </div>
             </div>
+
         </div>
     </div>
 </div>
+
 <div class="container-fluid text-light py-4" style="background: #051225;">
     <div class="container">
         <div class="row g-0">
             <div class="col-md-6 text-center text-md-start">
-                <p class="mb-md-0">&copy; <a class="text-white border-bottom" href="/">OroShineDentalcare 2024</a>. All Rights Reserved.</p>
+                <p class="mb-md-0">&copy;
+                    <a class="text-white border-bottom" href="/">OroShineDentalcare 2024</a>. All Rights Reserved.
+                </p>
             </div>
             <div class="col-md-6 text-center text-md-end">
-                <p class="mb-0">Designed by <a class="text-white border-bottom" href="https://allsafeinfotech.com">All Safe Infotech</a><br>
-                    Distributed by <a class="text-white border-bottom" href="https://allsafeinfotech.com">AllSafeInfotech</a>              
+                <p class="mb-0">
+                    Designed by <a class="text-white border-bottom" href="https://allsafeinfotech.com">All Safe Infotech</a><br>
+                    Distributed by <a class="text-white border-bottom" href="https://allsafeinfotech.com">AllSafeInfotech</a>
                 </p>
             </div>
         </div>
@@ -59,30 +71,33 @@
 <!-- Footer End -->
 
 <!-- Back to Top -->
-<a href="" class="btn btn-lg btn-primary btn-lg-square rounded back-to-top"><i class="bi bi-arrow-up"></i></a>
+<a href="#" class="btn btn-lg btn-primary btn-lg-square rounded back-to-top">
+    <i class="bi bi-arrow-up"></i>
+</a>
 
-{% load compress %}
 {% compress js %}
-<!-- jQuery (needed for many plugins) -->
 <script src="{% static 'lib/jquery/jquery.min.js' %}"></script>
-
-<!-- Bootstrap 5 Bundle -->
 <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-
-<!-- Animation & Utility Libraries -->
 <script src="{% static 'lib/wow/wow.min.js' %}"></script>
 <script src="{% static 'lib/easing/jquery.easing.min.js' %}"></script>
 <script src="{% static 'lib/waypoints/waypoints.min.js' %}"></script>
 <script src="{% static 'lib/owlcarousel/owl.carousel.min.js' %}"></script>
-
-<!-- Tempus Dominus v6 (Bootstrap 5) -->
-<script src="{% static 'lib/tempusdominus/js/popper.min.js' %}"></script>
 <script src="{% static 'lib/tempusdominus/js/tempus-dominus.min.js' %}"></script>
-
-<!-- Comparison Slider -->
 <script src="{% static 'lib/twentytwenty/jquery.event.move.js' %}"></script>
 <script src="{% static 'lib/twentytwenty/jquery.twentytwenty.js' %}"></script>
-
-<!-- Main Custom JS -->
 <script src="{% static 'js/main.js' %}"></script>
+
+<!-- Inline Initialization -->
+<script>
+    new WOW().init();
+
+    $('.price-carousel').owlCarousel({
+        autoplay: true,
+        smartSpeed: 1500,
+        margin: 30,
+        dots: true,
+        loop: true,
+        items: 1
+    });
+</script>
 {% endcompress %}
