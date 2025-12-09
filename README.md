@@ -295,3 +295,8 @@ docker-compose restart
 - Set `DEBUG=False` for production
 - Regularly backup your database
 - Monitor API usage limits for NoCode Calendar
+
+
+
+
+
