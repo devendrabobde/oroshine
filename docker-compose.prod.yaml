@@ -4,7 +4,7 @@ services:
   web:
     image: nikhil2523/oroshine:latest
     container_name: oroshine_web
-    env_file: .env.production
+    env_file: .env
     expose:
       - "8000"
     depends_on:
