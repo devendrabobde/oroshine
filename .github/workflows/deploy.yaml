@@ -33,45 +33,38 @@ jobs:
           cache-to: type=inline
 
   deploy:
-    name: Deploy to EC2
-    needs: build
-    runs-on: self-hosted
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Copy files to project directory
-        run: |
-          mkdir -p ~/oroshine_project
-          cp -r docker-compose.prod.yaml ~/oroshine_project/
-          cp -r nginx ~/oroshine_project/ 2>/dev/null || echo "No nginx folder, skipping"
-      
-      - name: Pull and Deploy
-        run: |
-          cd ~/oroshine_project
-          
-          # Pull latest image
-          docker pull nikhil2523/oroshine:latest
-          
-          # Stop old containers
-          docker compose -f docker-compose.prod.yaml down
-          
-          # Start new containers
-          docker compose -f docker-compose.prod.yaml up -d --remove-orphans
-          
-          # Wait for containers to be healthy
-          sleep 10
-          
-          # Run migrations
-          docker compose -f docker-compose.prod.yaml exec -T web python manage.py migrate --noinput || true
-          
-          # Collect static files
-          docker compose -f docker-compose.prod.yaml exec -T web python manage.py collectstatic --noinput || true
-          
-          # Clean up old images
-          docker image prune -f
-          
-      - name: Check deployment status
-        run: |
-          cd ~/oroshine_project
-          docker compose -f docker-compose.prod.yaml ps
+  name: Deploy to EC2
+  needs: build
+  runs-on: self-hosted
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Copy files to project directory
+      run: |
+        mkdir -p ~/oroshine_project
+        cp -r docker-compose.prod.yml ~/oroshine_project/
+        cp -r nginx ~/oroshine_project/ 2>/dev/null || echo "No nginx folder, skipping"
+    
+    - name: Pull and Deploy
+      run: |
+        cd ~/oroshine_project
+        
+        docker pull nikhil2523/oroshine:latest
+        
+        docker compose -f docker-compose.prod.yml down
+        
+        docker compose -f docker-compose.prod.yml up -d --remove-orphans
+        
+        sleep 10
+        
+        docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput || true
+        
+        docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput || true
+        
+        docker image prune -f
+    
+    - name: Check deployment status
+      run: |
+        cd ~/oroshine_project
+        docker compose -f docker-compose.prod.yml ps
