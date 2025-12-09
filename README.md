@@ -296,7 +296,7 @@ docker-compose restart
 - Regularly backup your database
 - Monitor API usage limits for NoCode Calendar
 
-
+update readme 
 
 
 
