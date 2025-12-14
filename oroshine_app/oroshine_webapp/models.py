@@ -151,3 +151,113 @@ class Appointment(models.Model):
             models.Index(fields=['status', 'date']),
         ]
         unique_together = [['date', 'time', 'doctor_email']]  # Prevent double booking
+
+
+
+class AppointmentHistory(models.Model):
+    """
+    Track appointment changes for audit trail
+    Helps debug race conditions and conflicts
+    """
+    appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name='history'
+    )
+    action = models.CharField(max_length=50)  # created, updated, cancelled
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    old_status = models.CharField(max_length=20, blank=True, null=True)
+    new_status = models.CharField(max_length=20, blank=True, null=True)
+    old_date = models.DateField(blank=True, null=True)
+    new_date = models.DateField(blank=True, null=True)
+    old_time = models.TimeField(blank=True, null=True)
+    new_time = models.TimeField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Appointment History'
+        verbose_name_plural = 'Appointment Histories'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['appointment', 'created_at']),
+            models.Index(fields=['action', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.action} - {self.appointment} at {self.created_at}"
+
+
+class BookingLock(models.Model):
+    """
+    Distributed lock table for appointment booking
+    Alternative to Redis locks for simpler deployments
+    """
+    lock_key = models.CharField(max_length=255, unique=True)
+    locked_by = models.CharField(max_length=255)
+    locked_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        verbose_name = 'Booking Lock'
+        verbose_name_plural = 'Booking Locks'
+        indexes = [
+            models.Index(fields=['lock_key', 'expires_at']),
+        ]
+
+    def __str__(self):
+        return f"Lock: {self.lock_key}"
+
+    @classmethod
+    def acquire_lock(cls, lock_key, timeout=10):
+        """Try to acquire a lock"""
+        from django.db import transaction
+        from django.utils import timezone
+        
+        try:
+            with transaction.atomic():
+                # Clean expired locks
+                cls.objects.filter(
+                    lock_key=lock_key,
+                    expires_at__lt=timezone.now()
+                ).delete()
+                
+                # Try to create new lock
+                lock = cls.objects.create(
+                    lock_key=lock_key,
+                    locked_by=f"booking_{timezone.now().timestamp()}",
+                    expires_at=timezone.now() + timedelta(seconds=timeout)
+                )
+                return lock
+        except:
+            return None
+
+    @classmethod
+    def release_lock(cls, lock_key):
+        """Release a lock"""
+        cls.objects.filter(lock_key=lock_key).delete()
+
+
+class Newsletter(models.Model):
+    """Newsletter subscriptions"""
+    email = models.EmailField(unique=True)
+    is_active = models.BooleanField(default=True)
+    subscribed_at = models.DateTimeField(auto_now_add=True)
+    unsubscribed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Newsletter Subscription'
+        verbose_name_plural = 'Newsletter Subscriptions'
+        ordering = ['-subscribed_at']
+        indexes = [
+            models.Index(fields=['email', 'is_active']),
+        ]
+
+    def __str__(self):
+        return self.email
