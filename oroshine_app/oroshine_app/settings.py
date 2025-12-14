@@ -74,12 +74,12 @@ INSTALLED_APPS = [
 SITE_ID = 1
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.cache.UpdateCacheMiddleware', 
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.cache.UpdateCacheMiddleware', 
     'django.middleware.gzip.GZipMiddleware',
     "django_minify_html.middleware.MinifyHtmlMiddleware",
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.cache.FetchFromCacheMiddleware', 
     'django.middleware.csrf.CsrfViewMiddleware',
     'debug_toolbar.middleware.DebugToolbarMiddleware',
@@ -98,9 +98,23 @@ ROOT_URLCONF = 'oroshine_app.urls'
 INTERNAL_IPS = [
     "127.0.0.1",
     "0.0.0.0",
-    "localhost"
+    "localhost",
+    "13.204.134.99"
 ]
 
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://13.204.134.99',
+    'http://ec2-13-204-134-99.ap-south-1.compute.amazonaws.com',
+]
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = False  # Set to True if using HTTPS
+    SESSION_COOKIE_SECURE = False  # Set to True if using HTTPS
+    CSRF_COOKIE_SECURE = False  # Set to True if using HTTPS
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
 
 # ==========================================
 # TEMPLATES
@@ -348,6 +362,7 @@ COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True  # Compress during collectstatic
 COMPRESS_URL = STATIC_URL
 COMPRESS_ROOT = STATIC_ROOT
+COMPRESS_CSS_HASHING_METHOD = 'content'
 
 # Optional: Use zlib compression for JS/CSS
 COMPRESS_CSS_FILTERS = [
