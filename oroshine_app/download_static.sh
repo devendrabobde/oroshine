@@ -26,6 +26,7 @@ mkdir -p "$TARGET_DIR/lib/fontawesome/webfonts"
 mkdir -p "$TARGET_DIR/lib/bootstrap-icons"
 mkdir -p "$TARGET_DIR/lib/bootstrap-icons/fonts"
 
+
 # 2. Download Core Bootstrap 5 & Custom JS
 echo "Downloading Bootstrap 5..."
 curl -L -o "$TARGET_DIR/css/bootstrap.min.css" "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"

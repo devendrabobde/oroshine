@@ -25,6 +25,7 @@ RUN chmod +x entrypoint.sh download_static.sh
 RUN ./download_static.sh
 
 # Fix for 404 Fonts: Ensure the target directory exists and permissions are right
+
 RUN mkdir -p /app/staticfiles && chmod -R 755 /app/staticfiles
 
 CMD ["./entrypoint.sh"]
