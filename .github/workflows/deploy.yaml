@@ -47,5 +47,5 @@ jobs:
       - name: Copy files to project directory
         run: |
           mkdir -p ~/oroshine_project
-          cp docker-compose.prod.yml ~/oroshine_project/
+          cp docker-compose.yml ~/oroshine_project/
           cp -r nginx ~/oroshine_pr_
