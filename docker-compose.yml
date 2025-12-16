@@ -4,7 +4,7 @@ services:
   web:
     image: nikhil2523/oroshine:latest
     container_name: oroshine_web
-    restart: always
+    restart: unless-stopped
     env_file: .env
     depends_on:
       - db
@@ -14,53 +14,77 @@ services:
       - media_volume:/app/media
     expose:
       - "8000"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: oroshine_db
-    restart: always
+    restart: unless-stopped
     env_file: .env
     environment:
-      POSTGRES_PASSWORD: ${PG_PASSWORD}   # ensure password is passed correctly
-      POSTGRES_USER: ${PG_USER}           # optional but good to define
-      POSTGRES_DB: ${PG_DB}               # optional, will create DB
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
       - "5432"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   redis:
     image: redis:7-alpine
     container_name: oroshine_redis
-    restart: always
-    command: redis-server --requirepass "${REDIS_PASSWORD}"  # use password if set
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 64mb
+      --maxmemory-policy allkeys-lru
     expose:
       - "6379"
+    deploy:
+      resources:
+        limits:
+          memory: 96M
 
   celery:
     image: nikhil2523/oroshine:latest
     container_name: oroshine_celery
-    command: celery -A oroshine_app worker -l info
-    restart: always
+    command: celery -A oroshine_app worker -l info --concurrency=1
+    restart: unless-stopped
     env_file: .env
     depends_on:
       - redis
       - db
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   celery-beat:
     image: nikhil2523/oroshine:latest
     container_name: oroshine_celery_beat
     command: celery -A oroshine_app beat -l info
-    restart: always
+    restart: unless-stopped
     env_file: .env
     depends_on:
       - redis
       - db
+    deploy:
+      resources:
+        limits:
+          memory: 96M
 
   nginx:
     image: nginx:alpine
     container_name: oroshine_nginx
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
@@ -69,6 +93,10 @@ services:
       - media_volume:/app/media
     depends_on:
       - web
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
 volumes:
   postgres_data:
