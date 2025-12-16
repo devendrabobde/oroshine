@@ -162,20 +162,20 @@ DATABASES = {
 
 
 
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')  # Make sure this reads from env
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Make sure this reads from env
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}',
+        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "SOCKET_CONNECT_TIMEOUT": 5,
             "SOCKET_TIMEOUT": 5,
             "CONNECTION_POOL_KWARGS": {
                 "max_connections": 50,
-                "retry_on_timeout": True
+                "retry_on_timeout": True,
             },
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
         },
@@ -183,7 +183,6 @@ CACHES = {
         "TIMEOUT": 300,
     }
 }
-
 
 
 # session 
