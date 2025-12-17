@@ -1,5 +1,5 @@
 """
-Enhanced Django settings with social authentication and security
+Production-ready Django settings for OroShine Dental App
 """
 
 import os
@@ -10,34 +10,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-media_dir = BASE_DIR / "media" / "avatars"
-default_avatar_path = media_dir / "default.png"
-
+MEDIA_DIR = BASE_DIR / "media" / "avatars"
+DEFAULT_AVATAR_PATH = MEDIA_DIR / "default.png"
 
 # ==========================================
 # SECURITY SETTINGS
 # ==========================================
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', 
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1',
                        cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Security enhancements
-# if not DEBUG:
-#     SECURE_SSL_REDIRECT = True
-#     SESSION_COOKIE_SECURE = True
-#     CSRF_COOKIE_SECURE = True
-#     SECURE_BROWSER_XSS_FILTER = True
-#     SECURE_CONTENT_TYPE_NOSNIFF = True
-#     X_FRAME_OPTIONS = 'DENY'
-#     SECURE_HSTS_SECONDS = 31536000
-#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-#     SECURE_HSTS_PRELOAD = True
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # ==========================================
 # APPLICATION DEFINITION
 # ==========================================
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -45,34 +42,32 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.sites',  # Required for social auth
-    
+    'django.contrib.sites',
+
     # Third-party apps
     'crispy_forms',
     'crispy_bootstrap5',
-    'django_celery_beat',  # For periodic tasks
-    'django_celery_results',  # Store task results
-    'compressor',          # For CSS/JS compression
-    'django_minify_html',              # For HTML minification
-    'imagekit',  
+    'django_celery_beat',
+    'django_celery_results',
+    'compressor',
+    'django_minify_html',
+    'imagekit',
     'django.contrib.humanize',
     'tempus_dominus',
-    'debug_toolbar',
-    
+
     # Social authentication
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
-    'allauth.socialaccount.providers.github',
-    'allauth.socialaccount.providers.twitter',
     'allauth.socialaccount.providers.linkedin_oauth2',
-    
+
     # Your app
     'oroshine_webapp',
 ]
 
 SITE_ID = 1
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -80,42 +75,15 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.cache.UpdateCacheMiddleware', 
     'django.middleware.gzip.GZipMiddleware',
-    "django_minify_html.middleware.MinifyHtmlMiddleware",
     'django.middleware.cache.FetchFromCacheMiddleware', 
     'django.middleware.csrf.CsrfViewMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
 ]
 
-
-
 ROOT_URLCONF = 'oroshine_app.urls'
-
-
-
-INTERNAL_IPS = [
-    "127.0.0.1",
-    "0.0.0.0",
-    "localhost",
-    "13.204.134.99"
-]
-
-
-CSRF_TRUSTED_ORIGINS = [
-    'http://13.204.134.99',
-    'http://ec2-13-204-134-99.ap-south-1.compute.amazonaws.com',
-]
-
-if not DEBUG:
-    SECURE_SSL_REDIRECT = False  # Set to True if using HTTPS
-    SESSION_COOKIE_SECURE = False  # Set to True if using HTTPS
-    CSRF_COOKIE_SECURE = False  # Set to True if using HTTPS
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
 
 # ==========================================
 # TEMPLATES
@@ -123,7 +91,7 @@ if not DEBUG:
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [Path(BASE_DIR, 'templates')],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -149,37 +117,31 @@ DATABASES = {
         "PASSWORD": config('PG_PASSWORD'),
         "HOST": config('PG_HOST', default='localhost'),
         "PORT": config('PG_PORT', default='5432'),
-        "CONN_MAX_AGE": 200,  # Connection pooling
+        "CONN_MAX_AGE": 200,
         "OPTIONS": {
-    "connect_timeout": 10,
-    "options": "-c statement_timeout=3000ms"  # cancel queries longer than 3 sec
-    }
+            "connect_timeout": 10,
+            "options": "-c statement_timeout=3000ms"
+        }
     }
 }
 
 # ==========================================
 # CACHING WITH REDIS
 # ==========================================
-
-
-REDIS_PASSWORD= os.getenv('REDIS_PASSWORD','')
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # 
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
-,
+        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "SOCKET_CONNECT_TIMEOUT": 5,
             "SOCKET_TIMEOUT": 5,
-            "CONNECTION_POOL_KWARGS": {
-                "max_connections": 15,
-                "retry_on_timeout": True,
-            },
+            "CONNECTION_POOL_KWARGS": {"max_connections": 15, "retry_on_timeout": True},
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
         },
         "KEY_PREFIX": "oroshine",
@@ -187,21 +149,10 @@ CACHES = {
     }
 }
 
-
-# session 
-
-CACHE_MIDDLEWARE_ALIAS = 'default'
-CACHE_MIDDLEWARE_SECONDS = 300  # 10 minutes
-CACHE_MIDDLEWARE_KEY_PREFIX = 'oroshine'
-
-# Session cache
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
-
-
-SESSION_COOKIE_AGE = 604800  # 1 weeks
+SESSION_COOKIE_AGE = 604800  # 1 week
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG  # True in production
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # ==========================================
@@ -214,102 +165,38 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Kolkata'
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_RESULT_EXTENDED = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-# Celery Beat schedule for periodic tasks
 CELERY_BEAT_SCHEDULE = {
     'check-appointment-reminders': {
         'task': 'oroshine_webapp.tasks.check_and_send_reminders',
-        'schedule': 3600.0,  # Every hour
+        'schedule': 3600.0,
     },
 }
 
 # ==========================================
-# AUTHENTICATION BACKENDS
+# AUTHENTICATION
 # ==========================================
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-
-# django toolbar 
-
-DEBUG_TOOLBAR_PANELS = [
-    'debug_toolbar.panels.cache.CachePanel',
-    # other panels
-]
-
-# ==========================================
-# DJANGO-ALLAUTH CONFIGURATION
-# ==========================================
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_USERNAME_REQUIRED = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = True
 ACCOUNT_SESSION_REMEMBER = True
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-# Social account providers configuration
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'SCOPE': [
-            'profile',
-            'email',
-        ],
-        'AUTH_PARAMS': {
-            'access_type': 'online',
-        },
-        'APP': {
-            'client_id': config('GOOGLE_CLIENT_ID', default=''),
-            'secret': config('GOOGLE_CLIENT_SECRET', default=''),
-            'key': ''
-        }
-    },
-    'github': {
-        'SCOPE': [
-            'user',
-            'user:email',
-        ],
-        'APP': {
-            'client_id': config('GITHUB_CLIENT_ID', default=''),
-            'secret': config('GITHUB_CLIENT_SECRET', default=''),
-        }
-    },
-    'twitter': {
-        'APP': {
-            'client_id': config('TWITTER_CLIENT_ID', default=''),
-            'secret': config('TWITTER_CLIENT_SECRET', default=''),
-        }
-    },
-    'linkedin_oauth2': {
-        'SCOPE': [
-            'r_basicprofile',
-            'r_emailaddress'
-        ],
-        'PROFILE_FIELDS': [
-            'id',
-            'first-name',
-            'last-name',
-            'email-address',
-        ],
-        'APP': {
-            'client_id': config('LINKEDIN_CLIENT_ID', default=''),
-            'secret': config('LINKEDIN_CLIENT_SECRET', default=''),
-        }
-    }
-}
-
 # ==========================================
 # PASSWORD VALIDATION
 # ==========================================
 AUTH_PASSWORD_VALIDATORS = [
-    # {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
@@ -324,66 +211,31 @@ USE_I18N = True
 USE_TZ = True
 
 # ==========================================
-# STATIC FILES
+# STATIC & MEDIA FILES
 # ==========================================
 STATIC_URL = '/static/'
-
-# During development, Django will look here for static files
-STATICFILES_DIRS = [
-    BASE_DIR / 'oroshine_webapp' / 'static',
-]
-
-# For production, collect all static files here
+STATICFILES_DIRS = [BASE_DIR / 'oroshine_webapp' / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-# Compress and cache
-if DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-    COMPRESS_OFFLINE = False
-else:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    COMPRESS_OFFLINE = True
-# In settings.py - Update WHITENOISE configuration
-WHITENOISE_MAX_AGE = 31536000  # 1 year for static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_MAX_AGE = 31536000
 
-# Add cache control for different file types
-WHITENOISE_MIMETYPES = {
-    '.css': 'text/css; charset=utf-8',
-    '.js': 'application/javascript; charset=utf-8',
-}
-# Static files
-STATICFILES_FINDERS = [
-    "django.contrib.staticfiles.finders.FileSystemFinder",
-    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
-    "compressor.finders.CompressorFinder",  # Add this
-]
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
-# Compressor settings
+# ==========================================
+# COMPRESSOR
+# ==========================================
 COMPRESS_ENABLED = True
-COMPRESS_OFFLINE = True  # Compress during collectstatic
+COMPRESS_OFFLINE = True
 COMPRESS_URL = STATIC_URL
 COMPRESS_ROOT = STATIC_ROOT
 COMPRESS_CSS_HASHING_METHOD = 'content'
-
-# Optional: Use zlib compression for JS/CSS
 COMPRESS_CSS_FILTERS = [
     'compressor.filters.css_default.CssAbsoluteFilter',
     'compressor.filters.cssmin.CSSMinFilter',
 ]
-
-COMPRESS_JS_FILTERS = [
-    'compressor.filters.jsmin.JSMinFilter',
-]
-
-
-MINIFY_HTML = True
-
-# ==========================================
-# MEDIA FILES (uploads)
-# ==========================================
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+COMPRESS_JS_FILTERS = ['compressor.filters.jsmin.JSMinFilter']
 
 # ==========================================
 # EMAIL CONFIGURATION
@@ -398,72 +250,32 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 ADMIN_EMAIL = config('ADMIN_EMAIL', default=EMAIL_HOST_USER)
 
 # ==========================================
-# API CONFIGURATION
-# ==========================================
-NOCODEAPI_BASE_URL = config('NOCODEAPI_BASE_URL')
-
-# ==========================================
 # LOGGING
 # ==========================================
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
+LOG_DIR = BASE_DIR / 'logs'
 os.makedirs(LOG_DIR, exist_ok=True)
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
+    'formatters': {'simple': {'format': '{levelname} {message}', 'style': '{'}},
     'handlers': {
         'file': {
-            'level': 'WARNING',  # Changed from INFO
+            'level': 'WARNING',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'django.log'),
-            'maxBytes': 1024 * 1024 * 5,  # 5 MB
-            'backupCount': 2,  # Reduced from 5
+            'filename': LOG_DIR / 'django.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 2,
             'formatter': 'simple',
         },
-        'console': {
-            'level': 'WARNING',  # Changed from INFO
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
+        'console': {'level': 'WARNING', 'class': 'logging.StreamHandler', 'formatter': 'simple'},
     },
     'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'WARNING',
-            'propagate': False,
-        },
-        'oroshine_webapp': {
-            'handlers': ['file', 'console'],
-            'level': 'WARNING',
-            'propagate': False,
-        },
-        'celery': {
-            'handlers': ['console'],
-            'level': 'WARNING',
-            'propagate': False,
-        },
+        'django': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        'oroshine_webapp': {'handlers': ['file', 'console'], 'level': 'WARNING', 'propagate': False},
+        'celery': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
     },
 }
-# ==========================================
-# DISABLE HEAVY FEATURES IN PRODUCTION
-# ==========================================
-if not DEBUG:
-    # Remove debug toolbar from installed apps
-    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'debug_toolbar' not in app]
-    MIDDLEWARE = [m for m in MIDDLEWARE if 'debug_toolbar' not in m]
-    
-    # Disable HTML minification to save CPU
-    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'django_minify_html' not in app]
-    MIDDLEWARE = [m for m in MIDDLEWARE if 'MinifyHtml' not in m]
-    
-    # Disable compressor offline mode (do it during build)
-    COMPRESS_OFFLINE = False
 
 # ==========================================
 # OTHER SETTINGS
@@ -471,23 +283,6 @@ if not DEBUG:
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
-
-
-# ==========================================
-# DISABLE HEAVY FEATURES IN PRODUCTION
-# ==========================================
-if not DEBUG:
-    # Remove debug toolbar from installed apps
-    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'debug_toolbar' not in app]
-    MIDDLEWARE = [m for m in MIDDLEWARE if 'debug_toolbar' not in m]
-    
-    # Disable HTML minification to save CPU
-    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'django_minify_html' not in app]
-    MIDDLEWARE = [m for m in MIDDLEWARE if 'MinifyHtml' not in m]
-    
-    # Disable compressor offline mode (do it during build)
-    COMPRESS_OFFLINE = False
-
-# File upload settings
+# File upload limits
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2 MB
