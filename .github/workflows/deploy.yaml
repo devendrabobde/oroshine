@@ -154,4 +154,4 @@ jobs:
       - name: Deployment summary
         run: |
           echo "✅ Deployment completed!"
-          echo "🔗 Application: http://"
+          echo "🔗 Application: http://13.204.135.217"
