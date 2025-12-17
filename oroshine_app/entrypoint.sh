@@ -18,8 +18,6 @@ python manage.py collectstatic --noinput
 echo "Compressing static files..."
 # python manage.py compress --force
 
-echo"run the app "
-
 echo "Starting Gunicorn..."
 exec gunicorn oroshine_app.wsgi:application \
     --bind 0.0.0.0:8000 \
