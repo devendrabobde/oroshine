@@ -37,6 +37,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1',
 # ==========================================
 # APPLICATION DEFINITION
 # ==========================================
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -148,7 +149,7 @@ DATABASES = {
         "PASSWORD": config('PG_PASSWORD'),
         "HOST": config('PG_HOST', default='localhost'),
         "PORT": config('PG_PORT', default='5432'),
-        "CONN_MAX_AGE": 600,  # Connection pooling
+        "CONN_MAX_AGE": 200,  # Connection pooling
         "OPTIONS": {
     "connect_timeout": 10,
     "options": "-c statement_timeout=3000ms"  # cancel queries longer than 3 sec
@@ -161,20 +162,22 @@ DATABASES = {
 # ==========================================
 
 
-
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # Make sure this reads from env
+REDIS_PASSWORD= os.getenv('REDIS_PASSWORD','')
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')  # 
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
+
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+        "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "SOCKET_CONNECT_TIMEOUT": 5,
             "SOCKET_TIMEOUT": 5,
             "CONNECTION_POOL_KWARGS": {
-                "max_connections": 50,
+                "max_connections": 15,
                 "retry_on_timeout": True,
             },
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
@@ -188,7 +191,7 @@ CACHES = {
 # session 
 
 CACHE_MIDDLEWARE_ALIAS = 'default'
-CACHE_MIDDLEWARE_SECONDS = 600  # 10 minutes
+CACHE_MIDDLEWARE_SECONDS = 300  # 10 minutes
 CACHE_MIDDLEWARE_KEY_PREFIX = 'oroshine'
 
 # Session cache
@@ -196,7 +199,7 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
 
-SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_COOKIE_AGE = 604800  # 1 weeks
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG  # True in production
 SESSION_COOKIE_SAMESITE = 'Lax'
@@ -409,61 +412,58 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'verbose': {
-            'format': '[{asctime}] {levelname} {name}:{lineno} - {message}',
-            'style': '{',
-        },
         'simple': {
             'format': '{levelname} {message}',
             'style': '{',
         },
     },
-    'filters': {
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse',
-        },
-    },
     'handlers': {
         'file': {
-            'level': 'INFO',
+            'level': 'WARNING',  # Changed from INFO
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'django.log'),
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'error_file': {
-            'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'errors.log'),
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 2,  # Reduced from 5
+            'formatter': 'simple',
         },
         'console': {
-            'level': 'INFO',
+            'level': 'WARNING',  # Changed from INFO
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
+            'handlers': ['console'],
+            'level': 'WARNING',
             'propagate': False,
         },
         'oroshine_webapp': {
-            'handlers': ['file', 'error_file', 'console'],
-            'level': 'INFO',
+            'handlers': ['file', 'console'],
+            'level': 'WARNING',
             'propagate': False,
         },
         'celery': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
+            'handlers': ['console'],
+            'level': 'WARNING',
             'propagate': False,
         },
     },
 }
+# ==========================================
+# DISABLE HEAVY FEATURES IN PRODUCTION
+# ==========================================
+if not DEBUG:
+    # Remove debug toolbar from installed apps
+    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'debug_toolbar' not in app]
+    MIDDLEWARE = [m for m in MIDDLEWARE if 'debug_toolbar' not in m]
+    
+    # Disable HTML minification to save CPU
+    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'django_minify_html' not in app]
+    MIDDLEWARE = [m for m in MIDDLEWARE if 'MinifyHtml' not in m]
+    
+    # Disable compressor offline mode (do it during build)
+    COMPRESS_OFFLINE = False
 
 # ==========================================
 # OTHER SETTINGS
@@ -471,6 +471,23 @@ LOGGING = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
+
+
+# ==========================================
+# DISABLE HEAVY FEATURES IN PRODUCTION
+# ==========================================
+if not DEBUG:
+    # Remove debug toolbar from installed apps
+    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'debug_toolbar' not in app]
+    MIDDLEWARE = [m for m in MIDDLEWARE if 'debug_toolbar' not in m]
+    
+    # Disable HTML minification to save CPU
+    INSTALLED_APPS = [app for app in INSTALLED_APPS if 'django_minify_html' not in app]
+    MIDDLEWARE = [m for m in MIDDLEWARE if 'MinifyHtml' not in m]
+    
+    # Disable compressor offline mode (do it during build)
+    COMPRESS_OFFLINE = False
+
 # File upload settings
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2 MB

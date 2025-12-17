@@ -4,12 +4,17 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: nikhil2523/oroshine
+  DEPLOY_PATH: ~/oroshine_project
 
 jobs:
-
   build:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,29 +28,130 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push Docker Image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./oroshine_app
           file: ./oroshine_app/Dockerfile
           push: true
           tags: |
-            nikhil2523/oroshine:latest
-            nikhil2523/oroshine:${{ github.sha }}
-          cache-from: type=registry,ref=nikhil2523/oroshine:latest
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:latest
           cache-to: type=inline
 
   deploy:
     name: Deploy to EC2
     needs: build
     runs-on: self-hosted
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Copy files to project directory
+
+      - name: Create deployment directory
         run: |
-          mkdir -p ~/oroshine_project
-          cp docker-compose.yml ~/oroshine_project/
-          cp -r nginx ~/oroshine_pr_
+          mkdir -p ${{ env.DEPLOY_PATH }}/nginx
+          mkdir -p ${{ env.DEPLOY_PATH }}/media/avatars
+
+      - name: Copy deployment files
+        run: |
+          cp docker-compose.yml ${{ env.DEPLOY_PATH }}/
+          cp nginx/nginx.conf ${{ env.DEPLOY_PATH }}/nginx/
+          cp nginx/robots.txt ${{ env.DEPLOY_PATH }}/nginx/
+          [ -f media/avatars/default.png ] && cp media/avatars/default.png ${{ env.DEPLOY_PATH }}/media/avatars/ || true
+
+      - name: Create .env file
+        run: |
+          cat > ${{ env.DEPLOY_PATH }}/.env << 'EOF'
+          ADMIN_EMAIL=${{ secrets.EMAIL_HOST_USER }}
+          
+          ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
+          
+          CELERY_BROKER_URL=redis://:${{ secrets.REDIS_PASSWORD }}@redis:6379/1
+          CELERY_RESULT_BACKEND=redis://:${{ secrets.REDIS_PASSWORD }}@redis:6379/1
+          
+          DEBUG=False
+          
+          DEFAULT_FROM_EMAIL=${{ secrets.EMAIL_HOST_USER }}
+          
+          DJANGO_SETTINGS_MODULE=oroshine_app.settings
+          
+          EMAIL_HOST=smtp.gmail.com
+          EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+          EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}
+          EMAIL_PORT=587
+          EMAIL_USE_TLS=True
+          
+          FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_APP_SECRET }}
+          
+          GITHUB_CLIENT_ID=${{ secrets.GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}
+          
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          
+          LINKEDIN_CLIENT_ID=${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_CLIENT_SECRET=${{ secrets.LINKEDIN_CLIENT_SECRET }}
+          
+          NOCODEAPI_BASE_URL=${{ secrets.NOCODEAPI_BASE_URL }}
+          
+          PG_DB=${{ secrets.PG_DB }}
+          PG_HOST=db
+          PG_PASSWORD=${{ secrets.PG_PASSWORD }}
+          PG_PORT=5432
+          PG_USER=${{ secrets.PG_USER }}
+          
+          REDIS_DB=1
+          REDIS_HOST=redis
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          REDIS_PORT=6379
+          
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          
+          SITE_ID=1
+          EOF
+
+
+      - name: Stop and remove old containers
+        run: |
+          cd ${{ env.DEPLOY_PATH }}
+          docker-compose down || true
+          
+      - name: Cleanup Docker resources
+        run: |
+          docker container prune -f
+          docker image prune -f
+          docker volume prune -f || true
+
+      - name: Pull latest image
+        run: |
+          cd ${{ env.DEPLOY_PATH }}
+          docker pull ${{ env.DOCKER_IMAGE }}:latest
+
+      - name: Start services
+        run: |
+          cd ${{ env.DEPLOY_PATH }}
+          docker-compose up -d
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for services to start..."
+          sleep 45
+          
+      - name: Check service status
+        run: |
+          cd ${{ env.DEPLOY_PATH }}
+          docker-compose ps
+          
+      - name: Show recent logs
+        if: always()
+        run: |
+          cd ${{ env.DEPLOY_PATH }}
+          docker-compose logs --tail=50
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Deployment completed!"
+          echo "🔗 Application: http://"
