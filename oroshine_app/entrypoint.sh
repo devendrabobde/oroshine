@@ -16,7 +16,7 @@ echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
 echo "Compressing static files..."
-python manage.py compress --force
+# python manage.py compress --force
 
 echo "Starting Gunicorn..."
 exec gunicorn oroshine_app.wsgi:application \
