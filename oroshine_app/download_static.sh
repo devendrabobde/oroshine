@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Define the target static directory
-TARGET_DIR="/home/nikhil/project/oroshine/oroshine_app/oroshine_webapp/static"
+# static directory to store css js boostrap others 
+TARGET_DIR="/app/oroshine_webapp/static"   
 
 echo "-----------------------------------------------------"
 echo "Starting Static File Download for OroShine Dental App"
@@ -92,4 +92,11 @@ echo "-----------------------------------------------------"
 echo "Download Complete!"
 echo "Files have been saved to $TARGET_DIR"
 echo "Please run 'python manage.py collectstatic' if you are in production mode."
+echo "-----------------------------------------------------"
+
+
+
+
+echo "-----------------------------------------------------"
+echo "Download Complete!"
 echo "-----------------------------------------------------"

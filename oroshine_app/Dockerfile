@@ -1,39 +1,39 @@
-
-# Use slim Python image
-FROM python:3.12-slim
-
-# Set working directory
+# STAGE 1: Build binaries
+FROM python:3.12-slim as builder
 WORKDIR /app
-
-# Environment settings
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    netcat-traditional \
-    postgresql-client \
-    curl \
-    bash \
-    dos2unix \
-    && rm -rf /var/lib/apt/lists/*
+    gcc python3-dev libpq-dev curl && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
-# Copy project files
+# STAGE 2: Runtime
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 netcat-traditional dos2unix curl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/wheels /wheels
+COPY requirements.txt .
+RUN pip install --no-cache /wheels/*
+
 COPY . .
 
-# Ensure scripts have LF endings and are executable
-RUN dos2unix entrypoint.sh download_static.sh \
-    && chmod +x entrypoint.sh download_static.sh
+# FIX A: Correct the path in download_static.sh dynamically
+RUN sed -i 's|TARGET_DIR=.*|TARGET_DIR="/app/oroshine_webapp/static"|g' download_static.sh
 
-# Run the static download script at build time
+# Fix line endings and permissions
+RUN dos2unix entrypoint.sh download_static.sh && \
+    chmod +x entrypoint.sh download_static.sh && \
+    mkdir -p /app/staticfiles /app/media
+
+# Run static download at build time to save deployment time
 RUN ./download_static.sh
 
-# Create staticfiles directory and fix permissions
-RUN mkdir -p /app/staticfiles && chmod -R 755 /app/staticfiles
-
-# Use entrypoint.sh as the container entrypoint
-CMD ["./entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]

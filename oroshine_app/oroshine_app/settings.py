@@ -128,10 +128,10 @@ DATABASES = {
 # ==========================================
 # CACHING WITH REDIS
 # ==========================================
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
-REDIS_PORT = os.getenv('REDIS_PORT', '6379')
-REDIS_DB = os.getenv('REDIS_DB', '0')
+REDIS_PASSWORD = config('REDIS_PASSWORD', '')
+REDIS_HOST = config('REDIS_HOST', 'redis')
+REDIS_PORT = config('REDIS_PORT', '6379')
+REDIS_DB = config('REDIS_DB', '0')
 
 CACHES = {
     "default": {
