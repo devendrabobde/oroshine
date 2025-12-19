@@ -32,6 +32,17 @@ X_FRAME_OPTIONS = 'DENY'
 # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 # SECURE_HSTS_PRELOAD = True
 
+
+# temp
+
+
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = None
+SECURE_CROSS_ORIGIN_RESOURCE_POLICY = None
+
+
+
+
 # ==========================================
 # APPLICATION DEFINITION
 # ==========================================

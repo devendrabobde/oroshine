@@ -325,15 +325,6 @@ def book_appointment_ajax(request):
         # Everything happens in atomic transaction (already wrapped by decorator)
         appointment_obj = form.save(commit=False)
         appointment_obj.user = request.user
-
-        # Get user profile with lock
-        profile = None
-        try:
-            profile = UserProfile.objects.select_for_update().get(user=request.user)
-        except UserProfile.DoesNotExist:
-            # Create profile atomically
-            profile = UserProfile.objects.create(user=request.user)
-
         # Use profile phone if available
         if not appointment_obj.phone and profile.phone:
             appointment_obj.phone = profile.phone

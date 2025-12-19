@@ -11,27 +11,80 @@
     {% include "header.html" %}
 
     <main class="container py-5">
-        <h1>Login</h1>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <h1 class="mb-4">Login</h1>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+                <div id="login-alert" class="alert alert-danger d-none" role="alert"></div>
 
-        <form method="POST">
-            {% csrf_token %}
-            {{ login_form|crispy }}
-            <button class="btn btn-primary" type="submit">Login</button>
-        </form>
+                <form id="login-form" method="POST">
+                    {% csrf_token %}
+                    {{ login_form|crispy }}
+                    <button id="login-btn" class="btn btn-primary w-100" type="submit">
+                        <span id="btn-text">Login</span>
+                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </form>
 
-        <p class="mt-3">
-            Don't have an account?
-            <a href="{% url 'register' %}">Create an account</a>.
-        </p>
+                <p class="mt-3 text-center">
+                    Don't have an account?
+                    <a href="{% url 'register' %}">Create an account</a>.
+                </p>
+            </div>
+        </div>
     </main>
 
     {% include "footer.html" %}
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault(); // Stop standard form submit
+            
+            const form = this;
+            const alertBox = document.getElementById('login-alert');
+            const btn = document.getElementById('login-btn');
+            const btnText = document.getElementById('btn-text');
+            const btnSpinner = document.getElementById('btn-spinner');
+            const formData = new FormData(form);
+
+            // UI Loading State
+            btn.disabled = true;
+            btnText.textContent = "Logging in...";
+            btnSpinner.classList.remove('d-none');
+            alertBox.classList.add('d-none');
+
+            fetch("{% url 'login_ajax' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = data.redirect_url;
+                } else {
+                    // Show Error
+                    alertBox.textContent = data.message;
+                    alertBox.classList.remove('d-none');
+                    // Reset Button
+                    btn.disabled = false;
+                    btnText.textContent = "Login";
+                    btnSpinner.classList.add('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alertBox.textContent = "An unexpected error occurred.";
+                alertBox.classList.remove('d-none');
+                btn.disabled = false;
+                btnText.textContent = "Login";
+                btnSpinner.classList.add('d-none');
+            });
+        });
+    </script>
 
 </body>
 </html>
