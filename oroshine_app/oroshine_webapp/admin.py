@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Contact, Appointment, UserProfile, TimeSlot
+from .models import Contact, Appointment, UserProfile
 
 
 @admin.register(UserProfile)
@@ -138,13 +138,3 @@ class AppointmentAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} appointment(s) marked as completed.')
     mark_completed.short_description = 'Mark as completed'
 
-
-@admin.register(TimeSlot)
-class TimeSlotAdmin(admin.ModelAdmin):
-    list_display = ['time', 'formatted_time', 'is_active']
-    list_filter = ['is_active']
-    ordering = ['time']
-    
-    def formatted_time(self, obj):
-        return obj.time.strftime('%I:%M %p')
-    formatted_time.short_description = 'Formatted Time'

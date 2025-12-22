@@ -22,15 +22,70 @@ from django.conf import settings
 from django.db import transaction, IntegrityError
 from django.contrib.auth.models import User
 
+from django.utils.text import slugify
+
+
 from .models import Contact, Appointment, UserProfile, TimeSlot
+
 from .tasks import (
     send_contact_email_task,
     send_appointment_email_task,
-    create_calendar_event_task
+    create_calendar_event_task,
+    # trigger_nocode_calendar_event
 )
+
 from .forms import NewUserForm, AppointmentForm, UserProfileForm
 
+import re
+
 logger = logging.getLogger(__name__)
+
+# ========================================== 
+# RATE LIMITING DECORATOR
+# ==========================================
+
+def rate_limit(key_prefix, limit=5, window=900):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            identifier = request.META.get('REMOTE_ADDR', 'unknown')
+            if request.user.is_authenticated:
+                identifier = f"user_{request.user.id}"
+            
+            cache_key = f"{key_prefix}:{identifier}"
+            attempts = cache.get(cache_key, 0)
+            
+            if attempts >= limit:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Too many attempts. Please try again in {window // 60} minutes.'
+                    }, status=429)
+                else:
+                    messages.error(request, f'Too many attempts. Please try again in {window // 60} minutes.')
+                    return redirect('login')
+            
+            # Execute view FIRST
+            response = view_func(request, *args, **kwargs)
+            
+            # FIXED: Only increment on actual failures
+            if isinstance(response, JsonResponse):
+                try:
+                    data = json.loads(response.content.decode('utf-8'))
+                    # Only increment if status is 'error' OR status code >= 400
+                    if data.get('status') == 'error' or response.status_code >= 400:
+                        cache.set(cache_key, attempts + 1, window)
+                    elif data.get('status') == 'success':
+                        # CLEAR on success
+                        cache.delete(cache_key)
+                except:
+                    pass
+            elif response.status_code >= 400:
+                cache.set(cache_key, attempts + 1, window)
+            
+            return response
+        return wrapper
+    return decorator
 
 # ========================================== 
 # CACHING UTILITIES
@@ -42,7 +97,6 @@ def cache_key_generator(prefix, *args, **kwargs):
     key_parts.extend(str(arg) for arg in args)
     key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
     return ":".join(key_parts)
-
 
 
 def cache_user_data(timeout=300):
@@ -74,8 +128,6 @@ def cache_user_data(timeout=300):
     return decorator
 
 
-
-
 def invalidate_user_cache(user_id, view_name=None):
     """Invalidate cached data for a specific user"""
     if view_name:
@@ -90,7 +142,6 @@ def invalidate_user_cache(user_id, view_name=None):
         ]
         for key in keys_to_delete:
             cache.delete(key)
-
 
 
 # ========================================== 
@@ -134,13 +185,344 @@ def atomic_with_lock(lock_key_func, timeout=10):
     return decorator
 
 
+# ========================================== 
+# USERNAME/EMAIL VALIDATION UTILITIES
+# ==========================================
+
+def is_valid_username(username):
+    """Validate username format"""
+    if not username or len(username) < 3 or len(username) > 150:
+        return False, "Username must be between 3 and 150 characters"
+    
+    if not re.match(r'^[\w.@+-]+$', username):
+        return False, "Username can only contain letters, numbers, and @/./+/-/_ characters"
+    
+    return True, ""
+
+
+def is_valid_email(email):
+    """Validate email format"""
+    try:
+        validate_email(email)
+        return True, ""
+    except ValidationError:
+        return False, "Invalid email format"
+
+
+def generate_username_suggestion(base_username):
+    """Generate unique username suggestion"""
+    base = slugify(base_username) or "user"
+    
+    # Try with numbers
+    for i in range(1, 100):
+        suggestion = f"{base}{i}"
+        if not User.objects.filter(username__iexact=suggestion).exists():
+            return suggestion
+    
+    # Fallback with random number
+    return f"{base}{random.randint(100, 9999)}"
+
+
+# ========================================== 
+# AJAX: CHECK USERNAME/EMAIL AVAILABILITY
+# ==========================================
+
+@require_http_methods(["GET"])
+@rate_limit('check_availability', limit=20, window=60)
+def check_availability(request):
+    """
+    AJAX endpoint to check username/email availability with caching
+    """
+    username = request.GET.get('username', '').strip()
+    email = request.GET.get('email', '').strip()
+    
+    if not username and not email:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Username or email is required'
+        }, status=400)
+    
+    # Create cache key
+    cache_key = f"availability_check:{username or email}"
+    cached_result = cache.get(cache_key)
+    
+    if cached_result is not None:
+        return JsonResponse(cached_result)
+    
+    response_data = {'is_taken': False, 'suggestion': '', 'message': ''}
+    
+    if username:
+        # Validate username format
+        is_valid, error_msg = is_valid_username(username)
+        if not is_valid:
+            response_data = {
+                'status': 'error',
+                'is_taken': True,
+                'message': error_msg,
+                'suggestion': ''
+            }
+        else:
+            # Check availability
+            is_taken = User.objects.filter(username__iexact=username).exists()
+            response_data = {
+                'status': 'success',
+                'is_taken': is_taken,
+                'message': f'Username "{username}" is already taken' if is_taken else 'Username is available',
+                'suggestion': generate_username_suggestion(username) if is_taken else ''
+            }
+    
+    elif email:
+        # Validate email format
+        is_valid, error_msg = is_valid_email(email)
+        if not is_valid:
+            response_data = {
+                'status': 'error',
+                'is_taken': True,
+                'message': error_msg,
+                'suggestion': ''
+            }
+        else:
+            # Check availability
+            is_taken = User.objects.filter(email__iexact=email).exists()
+            response_data = {
+                'status': 'success',
+                'is_taken': is_taken,
+                'message': 'Email is already registered' if is_taken else 'Email is available',
+                'suggestion': ''
+            }
+    
+    # Cache result for 5 minutes
+    cache.set(cache_key, response_data, 300)
+    
+    return JsonResponse(response_data)
+
+
+# ========================================== 
+# ATOMIC USER REGISTRATION
+# ==========================================
+
+@rate_limit('register', limit=5, window=3600)
+def register_request(request):
+    """Atomic user registration with profile creation and proper validation"""
+    if request.user.is_authenticated:
+        messages.info(request, "You are already logged in.")
+        return redirect('home')
+    
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+                form = NewUserForm(request.POST)
+                
+                if form.is_valid():
+                    username = form.cleaned_data['username']
+                    email = form.cleaned_data['email'].lower()
+                    
+                    # Double-check availability with select_for_update
+                    existing_user = User.objects.select_for_update().filter(
+                        Q(username__iexact=username) | Q(email__iexact=email)
+                    ).first()
+                    
+                    if existing_user:
+                        if existing_user.username.lower() == username.lower():
+                            form.add_error('username', 'This username is already taken.')
+                        if existing_user.email.lower() == email:
+                            form.add_error('email', 'This email is already registered.')
+                        
+                        messages.error(request, "Username or email already exists.")
+                        return render(request, "register.html", {"register_form": form})
+                    
+                    # Create user
+                    user = form.save(commit=False)
+                    user.email = email
+                    user.save()
+                    
+                    # Create profile atomically
+                    profile, created = UserProfile.objects.get_or_create(user=user)
+                    
+                    # Clear availability cache
+                    cache.delete(f"availability_check:{username}")
+                    cache.delete(f"availability_check:{email}")
+                    
+                    # Login user
+                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                    
+                    # Cache profile
+                    profile_cache_key = f'user_profile:{user.id}'
+                    cache.set(profile_cache_key, profile, 1800)
+                    
+                    # Clear rate limit on successful registration
+                    identifier = request.META.get('REMOTE_ADDR', 'unknown')
+                    cache.delete(f"register:{identifier}")
+                    
+                    logger.info(f"User {user.id} ({username}) registered successfully")
+                    messages.success(request, "Registration successful! Welcome to OroShine Dental Care.")
+                    
+                    return redirect('home')
+                else:
+                    # Form validation errors
+                    for field, errors in form.errors.items():
+                        for error in errors:
+                            messages.error(request, f"{field.title()}: {error}")
+        
+        except IntegrityError as e:
+            logger.error(f"Registration integrity error: {e}")
+            messages.error(request, "Registration failed. Username or email may already exist.")
+        
+        except Exception as e:
+            logger.error(f"Registration error: {e}", exc_info=True)
+            messages.error(request, "An unexpected error occurred. Please try again.")
+    
+    else:
+        form = NewUserForm()
+    
+    return render(request, "register.html", {"register_form": form})
+
+
+# ========================================== 
+# AJAX LOGIN WITH RATE LIMITING
+# ==========================================
+@require_http_methods(["POST"])
+@rate_limit('login_ajax', limit=5, window=900)
+def login_ajax(request):
+    try:
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+
+        if not username or not password:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Username and password are required'
+            }, status=400)
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            if not user.is_active:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Your account has been disabled.'
+                }, status=403)
+            
+            with transaction.atomic():
+                login(request, user,backend='django.contrib.auth.backends.ModelBackend')
+                profile, created = UserProfile.objects.get_or_create(user=user)
+                profile_cache_key = f'user_profile:{user.id}'
+                cache.set(profile_cache_key, profile, 1800)
+            
+            # IMPORTANT: Clear rate limit on success
+            identifier = request.META.get('REMOTE_ADDR', 'unknown')
+            cache.delete(f"login_ajax:{identifier}")
+            cache.delete(f"login:{identifier}")
+            cache.delete(f"login_ajax:user_{user.id}")
+            
+            logger.info(f"User {user.id} logged in via AJAX")
+
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Welcome back, {user.first_name or user.username}!',
+                'redirect_url': request.GET.get('next', '/')
+            })
+        else:
+            # Return error without incrementing (decorator handles it)
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid username or password'
+            }, status=401)
+
+    except Exception as e:
+        logger.error(f"Login error: {e}", exc_info=True)
+        return JsonResponse({
+            'status': 'error',
+            'message': 'An error occurred during login.'
+        }, status=500)
+        
+# ========================================== 
+# STANDARD LOGIN WITH RATE LIMITING
+# ==========================================
+
+@rate_limit('login', limit=5, window=900)
+def login_request(request):
+    """Standard login with AJAX support and atomic operations"""
+    if request.user.is_authenticated:
+        messages.info(request, "You are already logged in.")
+        return redirect('home')
+    
+    # Handle AJAX requests
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return login_ajax(request)
+
+    if request.method == "POST":
+        form = AuthenticationForm(request, data=request.POST)
+        
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, username=username, password=password)
+
+            
+            if user is not None:
+                if not user.is_active:
+                    messages.error(request, "Your account has been disabled. Please contact support.")
+                    return render(request, "login.html", {"login_form": form})
+                
+                with transaction.atomic():
+                    login(request, user,backend='django.contrib.auth.backends.ModelBackend')
+                    
+                    # Ensure profile exists
+                    profile, created = UserProfile.objects.get_or_create(user=user)
+                    
+                    # Cache profile
+                    profile_cache_key = f'user_profile:{user.id}'
+                    cache.set(profile_cache_key, profile, 1800)
+                
+                # Clear rate limit on successful login
+                identifier = request.META.get('REMOTE_ADDR', 'unknown')
+                cache.delete(f"login:{identifier}")
+                
+                logger.info(f"User {user.id} ({username}) logged in successfully")
+                messages.success(request, f"Welcome back, {username}!")
+                
+                return redirect(request.GET.get('next', '/'))
+            else:
+                messages.error(request, "Invalid username or password.")
+        else:
+            messages.error(request, "Invalid username or password.")
+    else:
+        form = AuthenticationForm()
+
+    return render(request, "login.html", {"login_form": form})
+
+
+# ========================================== 
+# LOGOUT WITH CACHE CLEANUP
+# ==========================================
+
+def logout_request(request):
+    """Logout with atomic cache cleanup"""
+    user_id = request.user.id if request.user.is_authenticated else None
+    username = request.user.username if request.user.is_authenticated else None
+    
+    logout(request)
+    
+    # Clear user-specific caches
+    if user_id:
+        invalidate_user_cache(user_id)
+        cache.delete(f'user_profile:{user_id}')
+        cache.delete(f'upcoming_appointments:{user_id}')
+        cache.delete(f'user_appointment_stats:{user_id}')
+
+    cache.clear()
+    
+    logger.info(f"User {user_id} ({username}) logged out successfully")
+    messages.success(request, "You have successfully logged out.")
+    return redirect("/")
 
 
 # ========================================== 
 # BASIC PAGES WITH CACHING
 # ==========================================
 
-@cache_page(60 * 15)  # Cache for 15 minutes
+# @cache_page(60 * 15)
 def homepage(request):
     """Homepage with cached statistics"""
     stats = cache.get('homepage_stats')
@@ -153,14 +535,14 @@ def homepage(request):
             'active_users': UserProfile.objects.filter(
                 user__is_active=True
             ).count(),
-            'satisfaction_rate': 98  # Could be calculated from reviews
+            'satisfaction_rate': 98
         }
-        cache.set('homepage_stats', stats, 60 * 30)  # 30 minutes
+        cache.set('homepage_stats', stats, 1800)
     
     return render(request, 'index.html', {'stats': stats})
 
 
-@cache_page(60 * 60)  # Cache for 1 hour
+@cache_page(60 * 60)
 def about(request):
     return render(request, 'about.html', context={})
 
@@ -193,76 +575,80 @@ def newsletter(request):
         return redirect("home")
 
 
+
+
+# ==============================================
+# appointments  and related view 
+# =========
+
+
+
 # ========================================== 
-# AJAX: CHECK AVAILABLE SLOTS (CACHED)
+# CACHE & UTILS
+# ==========================================
+
+def invalidate_user_cache(user_id):
+    """Clear specific user caches after an update"""
+    cache.delete(f"sidebar_appt:{user_id}")
+    cache.delete(f"user_stats:{user_id}")
+
+# ========================================== 
+# AJAX: CHECK AVAILABLE SLOTS (OPTIMIZED)
 # ==========================================
 
 @require_http_methods(["POST"])
 @login_required
 def check_available_slots(request):
-    """AJAX endpoint with intelligent caching and real-time availability"""
+    """
+    Super-fast availability check.
+    Comparies hardcoded TIME_SLOTS vs Database.
+    """
     try:
         date_str = request.POST.get('date')
-        doctor_email = request.POST.get('doctor_email')
+        doctor_id = request.POST.get('doctor_id') # Changed from email to ID
 
-        if not date_str or not doctor_email:
+        if not date_str or not doctor_id:
             return JsonResponse({
-                'status': 'error',
-                'message': 'Date and doctor email are required'
+                'status': 'error', 
+                'message': 'Date and doctor are required'
             }, status=400)
 
-        # Check cache first (short TTL for real-time accuracy)
-        cache_key = cache_key_generator(
-            'available_slots',
-            date_str,
-            doctor_email
-        )
-        
+        # 1. Check Cache (Fastest)
+        cache_key = f"slots:{date_str}:{doctor_id}"
         cached_data = cache.get(cache_key)
         if cached_data:
-            logger.debug(f"Returning cached slots for {date_str}")
             return JsonResponse(cached_data)
 
-        appointment_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        # 2. Validation
+        check_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        if check_date < timezone.now().date():
+            return JsonResponse({'status': 'error', 'message': 'Cannot book past dates'}, status=400)
 
-        if appointment_date < timezone.now().date():
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Cannot book appointments in the past'
-            }, status=400)
+        # 3. Query DB for TAKEN slots only (Single optimized query)
+        # We only need the 'time' strings of confirmed bookings
+        booked_times = set(Appointment.objects.filter(
+            date=check_date,
+            doctor_id=doctor_id,
+            status__in=['pending', 'confirmed']
+        ).values_list('time', flat=True))
 
-        # Use select_for_update to get accurate booked slots
-        with transaction.atomic():
-            booked_appointments = Appointment.objects.select_for_update().filter(
-                date=appointment_date,
-                doctor_email=doctor_email,
-                status__in=['pending', 'confirmed']
-            ).values_list('time', flat=True)
-            
-            booked_times = set(booked_appointments)
-
-        # Get time slots with caching
-        slots_cache_key = 'active_time_slots'
-        all_slots = cache.get(slots_cache_key)
-        
-        if not all_slots:
-            all_slots = list(TimeSlot.objects.filter(
-                is_active=True
-            ).order_by('time'))
-            cache.set(slots_cache_key, all_slots, 60 * 60)  # 1 hour
-
+        # 4. Compute Available Slots in Memory (Python is fast here)
         available_slots = []
-        current_time = timezone.now().time()
-        is_today = appointment_date == timezone.now().date()
+        now = timezone.now()
+        is_today = check_date == now.date()
+        current_time_str = now.strftime('%H:%M')
 
-        for slot in all_slots:
-            if is_today and slot.time <= current_time:
+        # Iterate through the hardcoded TIME_SLOTS tuple
+        for time_val, time_label in TIME_SLOTS:
+            # Skip past times if today
+            if is_today and time_val <= current_time_str:
                 continue
 
-            is_available = slot.time not in booked_times
+            is_available = time_val not in booked_times
+            
             available_slots.append({
-                'time': slot.time.strftime('%H:%M'),
-                'display_time': slot.time.strftime('%I:%M %p'),
+                'time': time_val,      # Value to send to DB (e.g., "09:00")
+                'display': time_label, # Value to show User (e.g., "09:00 AM")
                 'is_available': is_available
             })
 
@@ -270,50 +656,35 @@ def check_available_slots(request):
             'status': 'success',
             'date': date_str,
             'slots': available_slots,
-            'total_slots': len(available_slots),
             'available_count': sum(1 for s in available_slots if s['is_available'])
         }
 
-        # Cache for 2 minutes (short TTL for real-time availability)
-        cache.set(cache_key, response_data, 60 * 2)
+        # 5. Cache result for 2 minutes
+        cache.set(cache_key, response_data, 120)
 
         return JsonResponse(response_data)
 
     except ValueError:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Invalid date format. Use YYYY-MM-DD'
-        }, status=400)
+        return JsonResponse({'status': 'error', 'message': 'Invalid date format'}, status=400)
     except Exception as e:
-        logger.error(f"Error checking available slots: {e}")
-        return JsonResponse({
-            'status': 'error',
-            'message': 'An error occurred while checking availability'
-        }, status=500)
+        logger.error(f"Slot check error: {e}")
+        return JsonResponse({'status': 'error', 'message': 'Server error'}, status=500)
 
 
 # ========================================== 
-# ATOMIC APPOINTMENT BOOKING
+# ATOMIC APPOINTMENT BOOKING (AJAX)
 # ==========================================
-
-def get_appointment_lock_key(request, *args, **kwargs):
-    """Generate unique lock key for appointment booking"""
-    date = request.POST.get('date')
-    time = request.POST.get('time')
-    doctor = request.POST.get('doctor_email')
-    return f'appointment:{date}:{time}:{doctor}'
-
 
 @require_http_methods(["POST"])
 @login_required
-@atomic_with_lock(get_appointment_lock_key, timeout=10)
 def book_appointment_ajax(request):
     """
-    ATOMIC appointment booking with race condition prevention
-    Uses database-level locking and distributed locks
+    Handles the actual booking via AJAX.
+    Uses Atomic Transactions and Celery.
     """
     try:
-        form = AppointmentForm(request.POST)
+        # Use the optimized form (No DB queries on init)
+        form = FastAppointmentForm(request.POST)
         
         if not form.is_valid():
             return JsonResponse({
@@ -322,369 +693,147 @@ def book_appointment_ajax(request):
                 'errors': form.errors
             }, status=400)
 
-        # Everything happens in atomic transaction (already wrapped by decorator)
-        appointment_obj = form.save(commit=False)
-        appointment_obj.user = request.user
-        # Use profile phone if available
-        if not appointment_obj.phone and profile.phone:
-            appointment_obj.phone = profile.phone
+        # 1. ATOMIC WRITE
+        with transaction.atomic():
+            # Don't save to DB yet (commit=False)
+            appt = form.save(commit=False)
+            
+            # Auto-fill User Data
+            appt.user = request.user
+            
+            # MANUAL ID ASSIGNMENT (Critical Optimization)
+            # We skip querying the Doctor/Service tables. We trust the IDs.
+            appt.doctor_id = form.cleaned_data['doctor_id']
+            appt.service_id = form.cleaned_data['service_id']
+            
+            # Fetch phone from profile if missing
+            if not appt.phone and hasattr(request.user, 'profile'):
+                appt.phone = request.user.profile.phone
 
-        # Check for conflicts with database-level locking
-        buffer_minutes = 15
-        appointment_datetime = datetime.combine(
-            appointment_obj.date, 
-            appointment_obj.time
-        )
-        start_time = (appointment_datetime - timedelta(minutes=buffer_minutes)).time()
-        end_time = (appointment_datetime + timedelta(minutes=buffer_minutes)).time()
+            # SAVE (This is where the DB checks constraints)
+            appt.save()
 
-        # Use select_for_update to lock conflicting rows
-        conflicting_appointment = Appointment.objects.select_for_update().filter(
-            date=appointment_obj.date,
-            doctor_email=appointment_obj.doctor_email,
-            time__range=(start_time, end_time),
-            status__in=['pending', 'confirmed']
-        ).first()
+            # 2. TRIGGER BACKGROUND TASKS (Celery)
+            # on_commit ensures tasks run only AFTER the DB transaction succeeds
+            transaction.on_commit(lambda: send_appointment_email_task.delay(appt.id))
+            transaction.on_commit(lambda: trigger_nocode_calendar_event.delay(appt.id))
 
-        if conflicting_appointment:
+            # 3. INVALIDATE CACHES
+            invalidate_user_cache(request.user.id)
+            # Clear slot cache for this doctor/date so others see it as booked
+            cache.delete(f"slots:{appt.date}:{appt.doctor_id}")
+
+            logger.info(f"Booking success: ID {appt.id} for {request.user}")
+
             return JsonResponse({
-                'status': 'error',
-                'message': f'This time slot is already booked (±{buffer_minutes} min buffer)',
-                'booked_time': conflicting_appointment.time.strftime('%I:%M %p')
-            }, status=409)
+                'status': 'success',
+                'message': 'Appointment confirmed! Sending email...',
+                'redirect_url': '/appointment/' # Optional
+            }, status=201)
 
-        # Additional check: Exact time slot
-        exact_conflict = Appointment.objects.select_for_update().filter(
-            date=appointment_obj.date,
-            doctor_email=appointment_obj.doctor_email,
-            time=appointment_obj.time,
-            status__in=['pending', 'confirmed']
-        ).exists()
-
-        if exact_conflict:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'This exact time slot is already booked',
-                'booked_time': appointment_obj.time.strftime('%I:%M %p')
-            }, status=409)
-
-        # Save appointment (still in transaction)
-        appointment_obj.save()
-
-        # Invalidate relevant caches immediately
-        cache_key = cache_key_generator(
-            'available_slots',
-            appointment_obj.date.strftime('%Y-%m-%d'),
-            appointment_obj.doctor_email
-        )
-        cache.delete(cache_key)
-        invalidate_user_cache(request.user.id, 'appointment')
-        cache.delete('homepage_stats')
-        cache.delete(f'upcoming_appointments:{request.user.id}')
-        cache.delete(f'user_appointment_stats:{request.user.id}')
-
-        # Queue background tasks (after successful commit)
-        transaction.on_commit(lambda: send_appointment_email_task.delay(appointment_obj.id))
-        transaction.on_commit(lambda: create_calendar_event_task.delay(appointment_obj.id))
-
-        logger.info(f"Appointment {appointment_obj.id} booked successfully by user {request.user.id}")
-
-        return JsonResponse({
-            'status': 'success',
-            'message': 'Appointment booked successfully!',
-            'appointment': {
-                'id': appointment_obj.id,
-                'service': appointment_obj.get_service_display(),
-                'date': appointment_obj.date.strftime('%B %d, %Y'),
-                'time': appointment_obj.time.strftime('%I:%M %p'),
-                'doctor': appointment_obj.doctor_email,
-                'status': appointment_obj.get_status_display()
-            }
-        }, status=201)
-
-    except IntegrityError as e:
-        logger.error(f"Integrity error during booking: {e}")
+    except IntegrityError:
+        # This catches "Unique Constraint" (Double Booking) instantly
         return JsonResponse({
             'status': 'error',
-            'message': 'This appointment slot was just booked by another user. Please select another time.'
+            'message': 'This time slot was just taken by another patient. Please choose another.'
         }, status=409)
     
     except Exception as e:
-        logger.error(f"Error booking appointment: {e}", exc_info=True)
+        logger.error(f"Booking Error: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',
-            'message': 'An unexpected error occurred. Please try again.'
+            'message': 'System error. Please try again.'
         }, status=500)
 
 
 # ========================================== 
-# APPOINTMENT VIEW (WITH CACHING & ATOMIC OPERATIONS)
+# APPOINTMENT PAGE VIEW
 # ==========================================
 
 @login_required(login_url='/login/')
 def appointment(request):
-    """Main appointment view with atomic operations"""
+    """
+    Renders the page. 
+    If POST (Standard Submit), it reuses the logic above via function call 
+    or handles it similarly (Preferred: use AJAX for everything).
+    """
+    
+    # 1. Handle AJAX requests via the dedicated function
+    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return book_appointment_ajax(request)
+
+    # 2. Standard POST (Fallback)
     if request.method == 'POST':
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return book_appointment_ajax(request)
-
-        # Standard form submission with atomic operation
-        try:
-            with transaction.atomic():
-                form = AppointmentForm(request.POST)
-                if form.is_valid():
-                    appointment_obj = form.save(commit=False)
-                    appointment_obj.user = request.user
+        form = FastAppointmentForm(request.POST)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    appt = form.save(commit=False)
+                    appt.user = request.user
+                    appt.doctor_id = form.cleaned_data['doctor_id']
+                    appt.service_id = form.cleaned_data['service_id']
                     
-                    # Check conflicts with lock
-                    buffer_minutes = 15
-                    appointment_datetime = datetime.combine(
-                        appointment_obj.date, 
-                        appointment_obj.time
-                    )
-                    start_time = (appointment_datetime - timedelta(minutes=buffer_minutes)).time()
-                    end_time = (appointment_datetime + timedelta(minutes=buffer_minutes)).time()
-
-                    conflicting = Appointment.objects.select_for_update().filter(
-                        date=appointment_obj.date,
-                        doctor_email=appointment_obj.doctor_email,
-                        time__range=(start_time, end_time),
-                        status__in=['pending', 'confirmed']
-                    ).exists()
-
-                    if conflicting:
-                        messages.error(request, "This time slot is already booked. Please select another time.")
-                        return redirect('appointment')
-
-                    appointment_obj.save()
-
-                    # Invalidate caches
-                    invalidate_user_cache(request.user.id, 'appointment')
-
-                    # Queue tasks
-                    transaction.on_commit(lambda: send_appointment_email_task.delay(appointment_obj.id))
-                    transaction.on_commit(lambda: create_calendar_event_task.delay(appointment_obj.id))
-
-                    messages.success(request, "Appointment booked successfully!")
+                    if not appt.phone and hasattr(request.user, 'profile'):
+                        appt.phone = request.user.profile.phone
+                    
+                    appt.save()
+                    
+                    # Tasks
+                    transaction.on_commit(lambda: send_appointment_email_task.delay(appt.id))
+                    transaction.on_commit(lambda: trigger_nocode_calendar_event.delay(appt.id))
+                    
+                    # Cache Cleanup
+                    invalidate_user_cache(request.user.id)
+                    cache.delete(f"slots:{appt.date}:{appt.doctor_id}")
+                    
+                    messages.success(request, "Appointment Booked Successfully!")
                     return redirect('appointment')
-                else:
-                    messages.error(request, "Please correct the errors below.")
-        
-        except IntegrityError:
-            messages.error(request, "This appointment slot was just booked. Please select another time.")
-            return redirect('appointment')
+
+            except IntegrityError:
+                messages.error(request, "Slot already booked. Please try another.")
+            except Exception:
+                messages.error(request, "Something went wrong.")
+        else:
+            messages.error(request, "Please check the form for errors.")
     else:
-        form = AppointmentForm()
+        form = FastAppointmentForm()
 
-    # Cache user's upcoming appointments
-    cache_key = f'upcoming_appointments:{request.user.id}'
-    upcoming_appointments = cache.get(cache_key)
-
-    if not upcoming_appointments:
+    # 3. GET Request: Load Sidebar (Cached)
+    sidebar_key = f"sidebar_appt:{request.user.id}"
+    upcoming_appointments = cache.get(sidebar_key)
+    
+    if upcoming_appointments is None:
+        # OPTIMIZATION: select_related fetches Doctor & Service in 1 query
         upcoming_appointments = Appointment.objects.filter(
             user=request.user,
-            date__gte=timezone.now().date(),
             status__in=['pending', 'confirmed']
-        ).select_related('user').order_by('date', 'time')[:5]
+        ).select_related('doctor', 'service').order_by('date', 'time')[:5]
         
-        cache.set(cache_key, list(upcoming_appointments), 60 * 5)
-
-    # Cache doctors list
-    doctors_cache_key = 'doctors_list'
-    doctors = cache.get(doctors_cache_key)
-    
-    if not doctors:
-        doctors = [
-            {'email': 'dr.smith@oroshine.com', 'name': 'Dr. Sarah Smith'},
-            {'email': 'dr.johnson@oroshine.com', 'name': 'Dr. Michael Johnson'},
-            {'email': 'dr.patel@oroshine.com', 'name': 'Dr. Priya Patel'},
-        ]
-        cache.set(doctors_cache_key, doctors, 60 * 60)
+        cache.set(sidebar_key, upcoming_appointments, 300)
 
     context = {
         'form': form,
         'upcoming_appointments': upcoming_appointments,
-        'doctors': doctors
     }
     return render(request, 'appointment.html', context)
 
 
-# ========================================== 
-# ATOMIC USER REGISTRATION
-# ==========================================
 
-def register_request(request):
-    """Atomic user registration with profile creation"""
-    if request.method == "POST":
-        try:
-            with transaction.atomic():
-                form = NewUserForm(request.POST)
-                
-                if form.is_valid():
-                    # Check for existing user atomically
-                    username = form.cleaned_data['username']
-                    email = form.cleaned_data['email']
-                    
-                    if User.objects.select_for_update().filter(
-                        Q(username=username) | Q(email=email)
-                    ).exists():
-                        messages.error(request, "Username or email already exists.")
-                        return render(request, "register.html", {"register_form": form})
-                    
-                    # Create user
-                    user = form.save()
-                    
-                    # Create profile atomically
-                    UserProfile.objects.create(user=user)
-                    
-                    # Login user
-                    login(request, user)
-                    
-                    # Cache profile
-                    profile_cache_key = f'user_profile:{user.id}'
-                    cache.set(profile_cache_key, user.profile, 60 * 30)
-                    
-                    logger.info(f"User {user.id} registered successfully")
-                    messages.success(request, "Registration successful. Welcome!")
-                    
-                    return redirect("/")
-                else:
-                    messages.error(request, "Registration failed. Please check the information.")
-        
-        except IntegrityError as e:
-            logger.error(f"Registration integrity error: {e}")
-            messages.error(request, "Registration failed. Username or email may already exist.")
-    else:
-        form = NewUserForm()
-    
-    return render(request, "register.html", {"register_form": form})
+
+
+
+
+
+
+
+
+
+
+
 
 
 # ========================================== 
-# ENHANCED AJAX LOGIN WITH RATE LIMITING
-# ==========================================
-
-@require_http_methods(["POST"])
-def login_ajax(request):
-    """Enhanced AJAX login with atomic operations and rate limiting"""
-    try:
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
-
-        if not username or not password:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Username and password are required'
-            }, status=400)
-
-        # Rate limiting check with atomic increment
-        rate_limit_key = f'login_attempts:{request.META.get("REMOTE_ADDR")}'
-        
-        # Atomic increment
-        attempts = cache.get(rate_limit_key, 0)
-        
-        if attempts >= 5:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Too many login attempts. Please try again in 15 minutes.'
-            }, status=429)
-
-        # Authenticate
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
-            with transaction.atomic():
-                # Login user
-                login(request, user)
-                
-                # Clear rate limit on successful login
-                cache.delete(rate_limit_key)
-
-                # Get or create profile
-                profile, created = UserProfile.objects.get_or_create(user=user)
-                
-                # Cache user profile
-                profile_cache_key = f'user_profile:{user.id}'
-                cache.set(profile_cache_key, profile, 60 * 30)
-                
-                profile_data = {
-                    'phone': profile.phone,
-                    'avatar': profile.avatar.url if profile.avatar else None
-                }
-
-            logger.info(f"User {user.id} logged in successfully")
-
-            return JsonResponse({
-                'status': 'success',
-                'message': f'Welcome back, {user.first_name or user.username}!',
-                'user': {
-                    'username': user.username,
-                    'email': user.email,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'profile': profile_data
-                },
-                'redirect_url': request.GET.get('next', '/')
-            })
-        else:
-            # Increment rate limit counter atomically
-            cache.set(rate_limit_key, attempts + 1, 60 * 15)
-            
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Invalid username or password'
-            }, status=401)
-
-    except Exception as e:
-        logger.error(f"Login error: {e}", exc_info=True)
-        return JsonResponse({
-            'status': 'error',
-            'message': 'An error occurred during login'
-        }, status=500)
-
-
-# ========================================== 
-# STANDARD LOGIN WITH ATOMIC OPERATIONS
-# ==========================================
-
-def login_request(request):
-    """Standard login with AJAX support and atomic operations"""
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return login_ajax(request)
-
-    if request.method == "POST":
-        form = AuthenticationForm(request, data=request.POST)
-        
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
-            
-            if user is not None:
-                with transaction.atomic():
-                    login(request, user)
-                    
-                    # Ensure profile exists
-                    profile, created = UserProfile.objects.get_or_create(user=user)
-                    
-                    # Cache profile
-                    profile_cache_key = f'user_profile:{user.id}'
-                    cache.set(profile_cache_key, profile, 60 * 30)
-                
-                messages.success(request, f"Welcome back, {username}!")
-                return redirect(request.GET.get('next', '/'))
-            else:
-                messages.error(request, "Invalid username or password.")
-        else:
-            messages.error(request, "Invalid username or password.")
-    else:
-        form = AuthenticationForm()
-
-    return render(request, "login.html", {"login_form": form})
-
-
-# ========================================== 
-# CONTACT VIEW WITH ATOMIC OPERATIONS
+# CONTACT VIEW
 # ==========================================
 
 def contact(request):
@@ -739,7 +888,6 @@ def contact(request):
                 message=message_text
             )
 
-            # Queue email task after commit
             transaction.on_commit(lambda: send_contact_email_task.delay(
                 contact_inquiry.id,
                 request.META.get("REMOTE_ADDR", "Unknown IP")
@@ -755,99 +903,96 @@ def contact(request):
 
 
 # ========================================== 
-# USER PROFILE WITH ATOMIC UPDATES
+# USER PROFILE
 # ==========================================
 
 @login_required
 def user_profile(request):
-    """User profile with atomic updates and caching"""
-    profile_cache_key = f'user_profile:{request.user.id}'
-    
-    try:
-        profile = UserProfile.objects.select_for_update().get(user=request.user)
-    except UserProfile.DoesNotExist:
-        with transaction.atomic():
-            profile = UserProfile.objects.create(user=request.user)
+    user = request.user
+    profile_cache_key = f'user_profile:{user.id}'
+    stats_cache_key = f'user_appointment_stats:{user.id}'
 
+    # -----------------------------
+    # 1) FETCH PROFILE (cached)
+    # -----------------------------
+    profile = cache.get(profile_cache_key)
+
+    if not profile:
+        # Ensure atomic creation/fetch
+        with transaction.atomic():
+            profile, created = UserProfile.objects.select_for_update().get_or_create(user=user)
+        cache.set(profile_cache_key, profile, 600)
+
+    # -----------------------------
+    # 2) HANDLE POST (Update Profile)
+    # -----------------------------
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # Lock the profile for update
-                profile = UserProfile.objects.select_for_update().get(user=request.user)
-                
+                # Fetch fresh row locked for update
+                profile = UserProfile.objects.select_for_update().get(user=user)
                 form = UserProfileForm(request.POST, request.FILES, instance=profile)
+
                 if form.is_valid():
                     form.save()
-                    
-                    # Invalidate profile cache
+
+                    # Invalidate caches
                     cache.delete(profile_cache_key)
-                    invalidate_user_cache(request.user.id)
-                    
+                    cache.delete(stats_cache_key)
+
                     messages.success(request, "Profile updated successfully!")
                     return redirect('user_profile')
                 else:
                     messages.error(request, "Please correct the errors below.")
-        
         except Exception as e:
             logger.error(f"Profile update error: {e}")
-            messages.error(request, "An error occurred while updating profile.")
+            messages.error(request, "Something went wrong while updating your profile.")
+
     else:
         form = UserProfileForm(instance=profile)
 
-    # Cache appointment statistics
-    stats_cache_key = f'user_appointment_stats:{request.user.id}'
+    # -----------------------------
+    # 3) APPOINTMENT STATS (cached)
+    # -----------------------------
     stats = cache.get(stats_cache_key)
-    
     if not stats:
-        appointments = Appointment.objects.filter(user=request.user)
+        appointments = Appointment.objects.filter(user=user)
         stats = {
-            'total': appointments.count(),
-            'pending': appointments.filter(status='pending').count(),
-            'completed': appointments.filter(status='completed').count(),
+            "total": appointments.count(),
+            "pending": appointments.filter(status="pending").count(),
+            "completed": appointments.filter(status="completed").count(),
         }
-        cache.set(stats_cache_key, stats, 60 * 10)
+        cache.set(stats_cache_key, stats, 600)
 
-    # Get paginated appointments
-    appointments = Appointment.objects.filter(
-        user=request.user
-    ).select_related('user').order_by('-date', '-time')
+    # -----------------------------
+    # 4) APPOINTMENT LIST (pagination)
+    # -----------------------------
+    appointment_list = (
+        Appointment.objects.filter(user=user)
+        .select_related("user")
+        .order_by("-date", "-time")
+    )
 
-    paginator = Paginator(appointments, 10)
-    page_number = request.GET.get('page')
+    paginator = Paginator(appointment_list, 10)
+    page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    contacts = Contact.objects.filter(
-        user=request.user
-    ).order_by('-created_at')[:5]
+    # -----------------------------
+    # 5) CONTACTS (small data)
+    # -----------------------------
+    contacts = Contact.objects.filter(user=user).order_by("-created_at")[:5]
 
+    # -----------------------------
+    # 6) RENDER TEMPLATE
+    # -----------------------------
     context = {
-        'form': form,
-        'profile': profile,
-        'appointments': page_obj,
-        'contacts': contacts,
-        'total_appointments': stats['total'],
-        'pending_appointments': stats['pending'],
-        'completed_appointments': stats['completed'],
+        "form": form,
+        "profile": profile,
+        "appointments": page_obj,
+        "contacts": contacts,
+        "total_appointments": stats["total"],
+        "pending_appointments": stats["pending"],
+        "completed_appointments": stats["completed"],
     }
-    return render(request, 'profile.html', context)
 
-
-# ========================================== 
-# LOGOUT WITH CACHE CLEANUP
-# ==========================================
-
-def logout_request(request):
-    """Logout with atomic cache cleanup"""
-    user_id = request.user.id if request.user.is_authenticated else None
-    
-    logout(request)
-    
-    # Clear user-specific caches
-    if user_id:
-        invalidate_user_cache(user_id)
-        cache.delete(f'user_profile:{user_id}')
-        cache.delete(f'upcoming_appointments:{user_id}')
-        cache.delete(f'user_appointment_stats:{user_id}')
-    
-    messages.success(request, "You have successfully logged out.")
-    return redirect("/")
+    return render(request, "profile.html", context)

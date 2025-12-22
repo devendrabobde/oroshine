@@ -1,12 +1,18 @@
 from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
+from django.contrib import admin
+
 from . import views
 
 urlpatterns = [
+
+    # alredy register in app/urls.py
+    # path('admin/', admin.site.urls),
+    path("accounts/", include("allauth.urls")),
+
     # ==========================================
     # MAIN PAGES
     # ==========================================
+    
     path("", views.homepage, name="home"), 
     path("about/", views.about, name="about"),
     path("appointment/", views.appointment, name="appointment"),
@@ -20,12 +26,11 @@ urlpatterns = [
     # ==========================================
     # AUTHENTICATION
     # ==========================================
-    path("register/", views.register_request, name="register"),
-    path("login/", views.login_request, name="login"),
-    path("logout/", views.logout_request, name="logout"),
+    path("custom-register/", views.register_request, name="custom_register"),
+    path("custom-login/", views.login_request, name="custom_login"),
+    path("custom-logout/", views.logout_request, name="custom_logout"),
     
     # Social authentication (django-allauth)
-    path('accounts/', include('allauth.urls')),
     
     # ==========================================
     # USER PROFILE
@@ -38,9 +43,6 @@ urlpatterns = [
     path("api/check-slots/", views.check_available_slots, name="check_slots_ajax"),
     path("api/book-appointment/", views.book_appointment_ajax, name="book_appointment_ajax"),
     path("api/login/", views.login_ajax, name="login_ajax"),
+    path("api/check-availability/", views.check_availability, name="check_availability"),
 ]
 
-# Serve media files in development
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

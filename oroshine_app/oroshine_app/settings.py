@@ -79,20 +79,40 @@ INSTALLED_APPS = [
 
 SITE_ID = 1
 
+# MIDDLEWARE = [
+# 'django.middleware.security.SecurityMiddleware',
+# 'whitenoise.middleware.WhiteNoiseMiddleware',
+# 'django.contrib.sessions.middleware.SessionMiddleware',
+# 'django.middleware.common.CommonMiddleware',
+# 'django.middleware.cache.UpdateCacheMiddleware',
+# 'django.middleware.cache.FetchFromCacheMiddleware',
+# 'django.middleware.csrf.CsrfViewMiddleware',
+# 'django.contrib.auth.middleware.AuthenticationMiddleware',
+# 'django.contrib.messages.middleware.MessageMiddleware',
+# 'django.middleware.clickjacking.XFrameOptionsMiddleware',
+# 'allauth.account.middleware.AccountMiddleware',
+
+# ]
+
+
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.cache.UpdateCacheMiddleware', 
-    'django.middleware.gzip.GZipMiddleware',
-    'django.middleware.cache.FetchFromCacheMiddleware', 
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+
+    # Page cache should be AFTER user auth, not before! causing issue to test commented 
+    # 'django.middleware.cache.UpdateCacheMiddleware',
+    # 'django.middleware.cache.FetchFromCacheMiddleware',
 ]
+
+
 
 ROOT_URLCONF = 'oroshine_app.urls'
 
@@ -187,22 +207,106 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+
+CELERY_TASK_ANNOTATIONS = {
+    'oroshine_webapp.tasks.send_appointment_email_task': {'rate_limit': '10/m'}, # 10 emails per minute
+}
+
 # ==========================================
-# AUTHENTICATION
+# AUTHENTICATION and all auth 
 # ==========================================
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
+    "allauth.account.auth_backends.AuthenticationBackend",  # must be first for social login
+    "django.contrib.auth.backends.ModelBackend",            # keep this for username/email login
 ]
 
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-SOCIALACCOUNT_AUTO_SIGNUP = True
-ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = True
-ACCOUNT_SESSION_REMEMBER = True
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+
+
+
+
+
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'  # Allow login with username or email
+ACCOUNT_EMAIL_REQUIRED = True  # Email is required
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # Don't force email verification (change to 'mandatory' if needed)
+ACCOUNT_UNIQUE_EMAIL = True  # Ensure unique emails
+ACCOUNT_USERNAME_REQUIRED = True  # Username is required
+ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = True  # Require password confirmation
+ACCOUNT_SESSION_REMEMBER = True  # Remember user session
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True  # Auto-login after email confirmation
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+
+
+# Social account settings
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-create account from social login
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'optional'  # Don't require email verification for social accounts
+SOCIALACCOUNT_QUERY_EMAIL = True  # Request email from social provider
+SOCIALACCOUNT_STORE_TOKENS = True  # Store social auth tokens (useful for API access)
+
+# Custom adapters
+ACCOUNT_ADAPTER = "oroshine_webapp.adapters.CustomAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "oroshine_webapp.adapters.CustomSocialAccountAdapter"
+
+
+# Redirect URLs
+LOGIN_URL = '/custom_login/'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'home'
+ACCOUNT_LOGOUT_REDIRECT_URL = 'home'
+ACCOUNT_SIGNUP_REDIRECT_URL = '/custom-register'
+SOCIALACCOUNT_LOGIN_ON_GET = True
+ACCOUNT_LOGOUT_ON_GET = True
+
+
+
+
+#  Social provider setting
+
+SOCIALACCOUNT_PROVIDERS = {
+  'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+        'FETCH_USERINFO': True,
+        'VERIFIED_EMAIL': True,  # Only allow Google-verified emails
+        'EMAIL_REQUIRED': True,
+    },
+    'linkedin_oauth2': {
+        'SCOPE': [
+            'r_basicprofile',
+            'r_emailaddress'
+        ],
+        'PROFILE_FIELDS': [
+            'id',
+            'first-name',
+            'last-name',
+            'email-address',
+            'picture-url',
+            'public-profile-url',
+        ]
+    }
+}
+
+
+
+ACCOUNT_RATE_LIMITS = {
+    "login_failed": "5/1h",        # 5 failed logins per hour
+    "email_verification": "3/1h",  # optional
+    "password_reset": "5/1h",      # optional
+}
+
+
+# Username constraints
+ACCOUNT_USERNAME_MIN_LENGTH = 3
+ACCOUNT_USERNAME_BLACKLIST = ['admin', 'root', 'system', 'test', 'user']
+
+# Password strength
+ACCOUNT_PASSWORD_MIN_LENGTH = 8
+
 
 # ==========================================
 # PASSWORD VALIDATION
@@ -301,7 +405,29 @@ LOGGING = {
 # ==========================================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
+# Development tools
+# if DEBUG:
+#     INSTALLED_APPS += ["debug_toolbar"]
+#     MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+
+#     # Allow toolbar in Docker
+#     import socket
+#     hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+#     INTERNAL_IPS = [
+#         "127.0.0.1",
+#         "localhost",
+#     ] + [".".join(ip.split(".")[:-1] + ["1"]) for ip in ips]
+
+#     DEBUG_TOOLBAR_CONFIG = {
+#         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+#         'INTERCEPT_REDIRECTS': False
+
+
+#     }
+
+
 
 # File upload limits
+
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2 MB

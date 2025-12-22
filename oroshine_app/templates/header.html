@@ -1,7 +1,8 @@
 {% load static %}
 {% load humanize %}
 <!-- Spinner Start -->
-<div id="spinner" class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
+<div id="spinner"
+    class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
     <div class="spinner-grow text-primary m-1" role="status">
         <span class="sr-only">Loading...</span>
     </div>
@@ -20,7 +21,8 @@
     <div class="row gx-0">
         <div class="col-md-6 text-center text-lg-start mb-2 mb-lg-0">
             <div class="d-inline-flex align-items-center">
-                <small class="py-2"><i class="far fa-clock text-primary me-2"></i>Opening Hours: Mon - Sat : 9.00 am - 2.00 pm and 6.00 pm - 9.00 pm, Sunday Closed </small>
+                <small class="py-2"><i class="far fa-clock text-primary me-2"></i>Opening Hours: Mon - Sat : 9.00 am -
+                    2.00 pm and 6.00 pm - 9.00 pm, Sunday Closed </small>
             </div>
         </div>
         <div class="col-md-6 text-center text-lg-end">
@@ -37,30 +39,39 @@
 </div>
 <!-- Topbar End -->
 
-
 <!-- Navbar Start -->
 <nav class="navbar navbar-expand-lg bg-white navbar-light shadow-sm px-5 py-3 py-lg-0">
     <a href="/" class="navbar-brand p-0">
         <h1 class="m-0 text-primary"><i class="fa fa-tooth me-2"></i>oroshine Dental Care</h1>
     </a>
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
         <span class="navbar-toggler-icon"></span>
     </button>
+
     <div class="collapse navbar-collapse" id="navbarCollapse">
         <div class="navbar-nav ms-auto py-0">
+
             <a href="/" class="nav-item nav-link active">Home</a>
+
             {% if user.is_authenticated %}
-                <a href="{% url 'logout' %}" class="nav-item nav-link">Sign Out</a>
-                <a href="#" class="nav-item nav-link">Welcome, {{user.username}}</a>
-                {% if user.username == "admin" %}
-                    <a href="/admin" class="nav-item nav-link">Admin</a>
-                {% endif %}
-            {% else %}
-                <a href="{% url 'register' %}" class="nav-item nav-link">Sign Up</a>
-                <a href="{% url 'login' %}" class="nav-item nav-link">Sign In</a>
+            <!-- User Logged In -->
+            <a href="{% url 'account_logout' %}" class="nav-item nav-link">Sign Out</a>
+            <a href="{% url 'user_profile' %}" class="nav-item nav-link">Welcome, {{ user.username }}</a>
+
+            {% if user.is_staff %}
+            <a href="/admin" class="nav-item nav-link">Admin</a>
             {% endif %}
+
+            {% else %}
+            <!-- User Not Logged In (Allauth) -->
+            <a href="{% url 'custom_register' %}" class="nav-item nav-link">Sign Up</a>
+            <a href="{% url 'custom_login' %}" class="nav-item nav-link">Login</a>
+            {% endif %}
+
             <a href="{% url 'about' %}" class="nav-item nav-link">About</a>
             <a href="{% url 'service' %}" class="nav-item nav-link">Service</a>
+
             <div class="nav-item dropdown">
                 <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">Pages</a>
                 <div class="dropdown-menu m-0">
@@ -70,9 +81,15 @@
                     <a href="{% url 'appointment' %}" class="dropdown-item">Appointment</a>
                 </div>
             </div>
+
             <a href="{% url 'contact' %}" class="nav-item nav-link">Contact</a>
+
         </div>
-        <button type="button" class="btn text-dark" data-bs-toggle="modal" data-bs-target="#searchModal"><i class="fa fa-search"></i></button>
+
+        <button type="button" class="btn text-dark" data-bs-toggle="modal" data-bs-target="#searchModal">
+            <i class="fa fa-search"></i>
+        </button>
+
         <a href="{% url 'appointment' %}" class="btn btn-primary py-2 px-4 ms-3">Appointment</a>
     </div>
 </nav>
@@ -84,11 +101,13 @@
     <div class="modal-dialog modal-fullscreen">
         <div class="modal-content" style="background: rgba(9, 30, 62, .7);">
             <div class="modal-header border-0">
-                <button type="button" class="btn bg-white btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn bg-white btn-close" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body d-flex align-items-center justify-content-center">
                 <div class="input-group" style="max-width: 600px;">
-                    <input type="text" class="form-control bg-transparent border-primary p-3" placeholder="Type search keyword">
+                    <input type="text" class="form-control bg-transparent border-primary p-3"
+                        placeholder="Type search keyword">
                     <button class="btn btn-primary px-4"><i class="bi bi-search"></i></button>
                 </div>
             </div>

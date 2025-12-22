@@ -10,6 +10,7 @@ class OroshineWebappConfig(AppConfig):
 
     def ready(self):
         # Path to default avatar
+        import oroshine_webapp.signals
         media_dir = Path("media/avatars")
         default_avatar = media_dir / "default.png"
         

@@ -1,5 +1,7 @@
 {% load static %}
-{% load humanize %}
+{% load crispy_forms_tags %}
+{% load socialaccount %}
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -9,33 +11,209 @@
 
     {% include "header.html" %}
 
-    {% block content %} 
+    <main class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-7">
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
+                <h1 class="mb-4">Create Account</h1>
 
-    {% load crispy_forms_tags %}         
+                <form id="registration-form" method="POST" action="{% url 'custom_register' %}">
+                    {% csrf_token %}
 
-    <!--Register--> 
-    <div class="container py-5">
-        <h1>Register</h1>
-        <form action="{% url 'register' %}" method="POST">
-            {% csrf_token %}
-            {{ register_form|crispy }}                    
-            <button class="btn btn-primary" type="submit">Register</button>
-        </form>
-        <div>
-            <p class="text-center">If you already have an account, <a href="/login">login</a> instead.</p>
+                    <!-- Username -->
+                    <div class="mb-3 position-relative">
+                        {{ register_form.username|as_crispy_field }}
+                        <div id="username-feedback" class="invalid-feedback d-block"></div>
+                        <div id="username-spinner"
+                            class="spinner-border spinner-border-sm text-primary d-none position-absolute end-0 top-50 translate-middle-y">
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-3 position-relative">
+                        {{ register_form.email|as_crispy_field }}
+                        <div id="email-feedback" class="invalid-feedback d-block"></div>
+                        <div id="email-spinner"
+                            class="spinner-border spinner-border-sm text-primary d-none position-absolute end-0 top-50 translate-middle-y">
+                        </div>
+                    </div>
+
+                    {{ register_form.first_name|as_crispy_field }}
+                    {{ register_form.last_name|as_crispy_field }}
+                    {{ register_form.password1|as_crispy_field }}
+                    {{ register_form.password2|as_crispy_field }}
+
+                    <button id="submit-btn" type="submit" class="btn btn-primary w-100" disabled>
+                        Register
+                    </button>
+                </form>
+
+                <p class="text-center mt-3">
+                    Already have an account?
+                    <a href="{% url 'custom_login' %}">Login here</a>.
+                </p>
+
+                <!-- Social Login -->
+                {% get_providers as providers %}
+                {% if providers %}
+                <div class="social-login mt-4">
+                    <hr>
+                    <p class="text-center">Or continue with</p>
+
+                    <!-- Google Signup Button -->
+                    <a href="{% provider_login_url 'google' %}"
+                        class="btn btn-light border w-100 d-flex align-items-center justify-content-center gap-2 py-2">
+                        <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google"
+                            style="width: 20px; height: 20px;">
+                        <span class="fw-bold">Sign up with Google</span>
+                    </a>
+                </div>
+                {% endif %}
+
+            </div>
         </div>
-        <br>
-    </div>
-
-    {% endblock %}
+        </div>
+    </main>
 
     {% include "footer.html" %}
 
+    <!-- ===========================
+         AJAX USERNAME + EMAIL CHECK
+    ============================ -->
+    <script>
+        let usernameTimer;
+        let emailTimer;
+        let usernameOK = false;
+        let emailOK = false;
+
+        const usernameField = document.getElementById("id_username");
+        const emailField = document.getElementById("id_email");
+        const usernameFeedback = document.getElementById("username-feedback");
+        const emailFeedback = document.getElementById("email-feedback");
+        const spinnerUser = document.getElementById("username-spinner");
+        const spinnerEmail = document.getElementById("email-spinner");
+        const submitBtn = document.getElementById("submit-btn");
+
+        function updateSubmit() {
+            submitBtn.disabled = !(usernameOK && emailOK);
+        }
+
+        /* -------------------------
+           USERNAME CHECK
+        -------------------------- */
+        usernameField?.addEventListener("input", () => {
+            clearTimeout(usernameTimer);
+            const value = usernameField.value.trim();
+
+            usernameOK = false;
+            updateSubmit();
+
+            usernameField.classList.remove("is-valid", "is-invalid");
+            usernameFeedback.textContent = "";
+            spinnerUser.classList.remove("d-none");
+
+            if (value.length < 3) {
+                spinnerUser.classList.add("d-none");
+                if (value.length > 0) {
+                    usernameField.classList.add("is-invalid");
+                    usernameFeedback.textContent = "Username must be at least 3 characters.";
+                }
+                return;
+            }
+
+            usernameTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`{% url 'check_availability' %}?username=${encodeURIComponent(value)}`);
+                    const data = await res.json();
+
+                    spinnerUser.classList.add("d-none");
+
+                    if (data.is_taken) {
+                        usernameField.classList.add("is-invalid");
+                        usernameFeedback.textContent =
+                            data.suggestion
+                                ? `Username is taken. Try: ${data.suggestion}`
+                                : "Username is already taken.";
+                        usernameOK = false;
+                    } else {
+                        usernameField.classList.add("is-valid");
+                        usernameOK = true;
+                    }
+                } catch (err) {
+                    spinnerUser.classList.add("d-none");
+                    usernameField.classList.add("is-invalid");
+                    usernameFeedback.textContent = "Error checking username.";
+                    usernameOK = false;
+                }
+
+                updateSubmit();
+            }, 500);
+        });
+
+        /* -------------------------
+           EMAIL CHECK
+        -------------------------- */
+        emailField?.addEventListener("input", () => {
+            clearTimeout(emailTimer);
+            const value = emailField.value.trim();
+
+            emailOK = false;
+            updateSubmit();
+
+            emailField.classList.remove("is-valid", "is-invalid");
+            emailFeedback.textContent = "";
+            spinnerEmail.classList.remove("d-none");
+
+            if (!value.includes("@") || value.length < 5) {
+                spinnerEmail.classList.add("d-none");
+                if (value.length > 0) {
+                    emailField.classList.add("is-invalid");
+                    emailFeedback.textContent = "Enter a valid email.";
+                }
+                return;
+            }
+
+            emailTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`{% url 'check_availability' %}?email=${encodeURIComponent(value)}`);
+                    const data = await res.json();
+
+                    spinnerEmail.classList.add("d-none");
+
+                    if (data.is_taken) {
+                        emailField.classList.add("is-invalid");
+                        emailFeedback.textContent = "Email already registered.";
+                        emailOK = false;
+                    } else {
+                        emailField.classList.add("is-valid");
+                        emailOK = true;
+                    }
+                } catch (err) {
+                    spinnerEmail.classList.add("d-none");
+                    emailField.classList.add("is-invalid");
+                    emailFeedback.textContent = "Error checking email.";
+                    emailOK = false;
+                }
+
+                updateSubmit();
+            }, 500);
+        });
+
+        /* -------------------------
+           PREVENT DOUBLE SUBMIT
+        -------------------------- */
+        document.getElementById("registration-form").addEventListener("submit", e => {
+            if (!usernameOK || !emailOK) {
+                e.preventDefault();
+                alert("Please fix all validation errors before submitting.");
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Registering...";
+            }
+        });
+
+    </script>
+
 </body>
+
 </html>

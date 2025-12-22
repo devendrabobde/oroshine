@@ -211,3 +211,64 @@ def update_appointment_status_task(appointment_id, new_status):
     except Exception as e:
         logger.error(f"Error updating appointment {appointment_id}: {e}")
         raise
+
+
+
+
+
+
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def download_social_avatar_task(self, user_id, avatar_url):
+    """
+    Download and save avatar from social login
+    """
+    try:
+        from django.contrib.auth.models import User
+        from django.core.files.base import ContentFile
+        from .models import UserProfile
+        import requests
+        from io import BytesIO
+        from PIL import Image
+        
+        user = User.objects.get(id=user_id)
+        profile = UserProfile.objects.get(user=user)
+        
+        # Download image
+        response = requests.get(avatar_url, timeout=10)
+        response.raise_for_status()
+        
+        # Process image
+        img = Image.open(BytesIO(response.content))
+        
+        # Resize to 300x300
+        if img.height > 300 or img.width > 300:
+            output_size = (300, 300)
+            img.thumbnail(output_size, Image.Resampling.LANCZOS)
+        
+        # Convert to RGB if necessary
+        if img.mode in ('RGBA', 'LA', 'P'):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = background
+        
+        # Save to BytesIO
+        output = BytesIO()
+        img.save(output, format='JPEG', quality=85)
+        output.seek(0)
+        
+        # Save to profile
+        filename = f"social_avatar_{user_id}.jpg"
+        profile.avatar.save(filename, ContentFile(output.read()), save=True)
+        
+        logger.info(f"Avatar downloaded for user {user_id}")
+        return {'status': 'success', 'user_id': user_id}
+    
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found for avatar download")
+        return {'status': 'error', 'message': 'User not found'}
+    
+    except Exception as e:
+        logger.error(f"Error downloading avatar for user {user_id}: {e}")
+        raise self.retry(exc=e, countdown=60)

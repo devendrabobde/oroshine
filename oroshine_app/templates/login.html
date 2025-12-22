@@ -1,5 +1,6 @@
 {% load static %}
 {% load crispy_forms_tags %}
+{% load socialaccount %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -13,23 +14,49 @@
     <main class="container py-5">
         <div class="row justify-content-center">
             <div class="col-md-6">
+
                 <h1 class="mb-4">Login</h1>
 
+                <!-- AJAX ALERT BOX -->
                 <div id="login-alert" class="alert alert-danger d-none" role="alert"></div>
 
                 <form id="login-form" method="POST">
                     {% csrf_token %}
                     {{ login_form|crispy }}
+                    {% csrf_token %}
+
+
                     <button id="login-btn" class="btn btn-primary w-100" type="submit">
                         <span id="btn-text">Login</span>
-                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none"></span>
                     </button>
                 </form>
 
                 <p class="mt-3 text-center">
                     Don't have an account?
-                    <a href="{% url 'register' %}">Create an account</a>.
+                    <a href="{% url 'custom_register' %}">Create an account</a>.
                 </p>
+
+                <!-- Social Login -->
+                {% get_providers as providers %}
+                {% if providers %}
+                <div class="social-login mt-4">
+                    <hr>
+                    <p class="text-center">Or continue with</p>
+
+                    {% for provider in providers %}
+                    <a href="{% provider_login_url provider.id %}"
+                        class="btn btn-light border w-100 d-flex align-items-center justify-content-center gap-2 py-2">
+                        <img src="https://developers.google.com/identity/images/g-logo.png" alt="{{ provider.name }}"
+                            style="width: 20px; height: 20px;">
+                        <span class="fw-bold">Continue with {{ provider.name }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+
+
             </div>
         </div>
     </main>
@@ -37,54 +64,66 @@
     {% include "footer.html" %}
 
     <script>
-        document.getElementById('login-form').addEventListener('submit', function(e) {
-            e.preventDefault(); // Stop standard form submit
-            
-            const form = this;
-            const alertBox = document.getElementById('login-alert');
-            const btn = document.getElementById('login-btn');
-            const btnText = document.getElementById('btn-text');
-            const btnSpinner = document.getElementById('btn-spinner');
-            const formData = new FormData(form);
+        const loginForm = document.getElementById('login-form');
+        const alertBox = document.getElementById('login-alert');
+        const btn = document.getElementById('login-btn');
+        const btnText = document.getElementById('btn-text');
+        const btnSpinner = document.getElementById('btn-spinner');
 
-            // UI Loading State
+        loginForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
             btn.disabled = true;
             btnText.textContent = "Logging in...";
             btnSpinner.classList.remove('d-none');
             alertBox.classList.add('d-none');
 
+            const formData = new FormData(loginForm);
+
             fetch("{% url 'login_ajax' %}", {
-                method: 'POST',
-                body: formData,
+                method: "POST",
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-                }
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": formData.get("csrfmiddlewaretoken")
+                },
+                body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    window.location.href = data.redirect_url;
-                } else {
-                    // Show Error
-                    alertBox.textContent = data.message;
-                    alertBox.classList.remove('d-none');
-                    // Reset Button
+                .then(r => {
+                    if (r.status === 429) return r.json().then(x => { throw new Error(x.message); });
+                    return r.json();
+                })
+                .then(data => {
+                    if (data.status === "success") {
+                        alertBox.className = "alert alert-success";
+                        alertBox.textContent = data.message;
+                        alertBox.classList.remove("d-none");
+
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url || "/";
+                        }, 500);
+
+                    } else {
+                        alertBox.className = "alert alert-danger";
+                        alertBox.textContent = data.message;
+                        alertBox.classList.remove("d-none");
+
+                        btn.disabled = false;
+                        btnText.textContent = "Login";
+                        btnSpinner.classList.add('d-none');
+                    }
+                })
+                .catch(err => {
+                    alertBox.className = "alert alert-danger";
+                    alertBox.textContent = err.message || "Unexpected error!";
+                    alertBox.classList.remove("d-none");
+
                     btn.disabled = false;
                     btnText.textContent = "Login";
                     btnSpinner.classList.add('d-none');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alertBox.textContent = "An unexpected error occurred.";
-                alertBox.classList.remove('d-none');
-                btn.disabled = false;
-                btnText.textContent = "Login";
-                btnSpinner.classList.add('d-none');
-            });
+                });
         });
     </script>
 
 </body>
+
 </html>
