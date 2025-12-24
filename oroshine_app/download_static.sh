@@ -1,102 +1,262 @@
+# #!/bin/bash
+# set -e
+
+# # ==============================================================================
+# # 1. PERMANENT PATH FIX (Works in CI/CD, Docker, Local, AWS)
+# # ==============================================================================
+
+# SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# TARGET_DIR="$SCRIPT_DIR/oroshine_webapp/static"
+
+# echo "-----------------------------------------------------"
+# echo "🚀 Starting Static Asset Pipeline"
+# echo "📍 Environment: $(uname -s)"
+# echo "📂 Script Root: $SCRIPT_DIR"
+# echo "🎯 Target Dir:  $TARGET_DIR"
+# echo "-----------------------------------------------------"
+
+# # ==============================================================================
+# # 2. CLEANUP
+# # ==============================================================================
+# rm -rf "$TARGET_DIR/lib"
+# rm -rf "$TARGET_DIR/webfonts"
+
+# # ==============================================================================
+# # 3. DIRECTORY STRUCTURE (✅ FIXED)
+# # ==============================================================================
+# mkdir -p "$TARGET_DIR/css" "$TARGET_DIR/js" "$TARGET_DIR/webfonts"
+
+# mkdir -p "$TARGET_DIR/lib/animate"
+# mkdir -p "$TARGET_DIR/lib/owlcarousel/assets"
+# mkdir -p "$TARGET_DIR/lib/tempusdominus/css"
+# mkdir -p "$TARGET_DIR/lib/tempusdominus/js"
+# mkdir -p "$TARGET_DIR/lib/twentytwenty"
+# mkdir -p "$TARGET_DIR/lib/wow"
+# mkdir -p "$TARGET_DIR/lib/waypoints"
+# mkdir -p "$TARGET_DIR/lib/jquery"
+# mkdir -p "$TARGET_DIR/lib/easing"              
+# mkdir -p "$TARGET_DIR/lib/fontawesome/css"
+# mkdir -p "$TARGET_DIR/lib/fontawesome/webfonts"
+# mkdir -p "$TARGET_DIR/lib/bootstrap-icons/fonts"
+
+# # ==============================================================================
+# # 4. DOWNLOAD PIPELINE
+# # ==============================================================================
+
+# echo "⬇️  [1/6] Core Frameworks..."
+# curl -s -L -o "$TARGET_DIR/css/bootstrap.min.css" \
+#   "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+
+# curl -s -L -o "$TARGET_DIR/js/bootstrap.bundle.min.js" \
+#   "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+
+# curl -s -L -o "$TARGET_DIR/lib/jquery/jquery.min.js" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+
+# echo "⬇️  [2/6] FontAwesome..."
+# curl -s -L -o "$TARGET_DIR/lib/fontawesome/css/all.min.css" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+
+# curl -s -L -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-solid-900.woff2" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/webfonts/fa-solid-900.woff2"
+
+# curl -s -L -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-brands-400.woff2" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/webfonts/fa-brands-400.woff2"
+
+# curl -s -L -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-regular-400.woff2" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/webfonts/fa-regular-400.woff2"
+
+# cp "$TARGET_DIR/lib/fontawesome/webfonts/"* "$TARGET_DIR/webfonts/"
+
+# echo "⬇️  [3/6] Bootstrap Icons..."
+# curl -s -L -o "$TARGET_DIR/lib/bootstrap-icons/bootstrap-icons.css" \
+#   "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+
+# curl -s -L -o "$TARGET_DIR/lib/bootstrap-icons/fonts/bootstrap-icons.woff2" \
+#   "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/fonts/bootstrap-icons.woff2"
+
+# echo "⬇️  [4/6] Dental Features..."
+# curl -s -L -o "$TARGET_DIR/lib/twentytwenty/jquery.twentytwenty.js" \
+#   "https://raw.githubusercontent.com/zurb/twentytwenty/master/js/jquery.twentytwenty.js"
+
+# curl -s -L -o "$TARGET_DIR/lib/twentytwenty/jquery.event.move.js" \
+#   "https://raw.githubusercontent.com/stephband/jquery.event.move/master/js/jquery.event.move.js"
+
+# curl -s -L -o "$TARGET_DIR/lib/twentytwenty/twentytwenty.css" \
+#   "https://raw.githubusercontent.com/zurb/twentytwenty/master/css/twentytwenty.css"
+
+# echo "⬇️  [5/6] UI Plugins..."
+# curl -s -L -o "$TARGET_DIR/lib/owlcarousel/owl.carousel.min.js" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"
+
+# curl -s -L -o "$TARGET_DIR/lib/owlcarousel/assets/owl.carousel.min.css" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css"
+
+# curl -s -L -o "$TARGET_DIR/lib/owlcarousel/assets/owl.theme.default.min.css" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.theme.default.min.css"
+
+# curl -s -L -o "$TARGET_DIR/lib/tempusdominus/js/tempus-dominus.min.js" \
+#   "https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.4/dist/js/tempus-dominus.min.js"
+
+# curl -s -L -o "$TARGET_DIR/lib/tempusdominus/css/tempus-dominus.min.css" \
+#   "https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.4/dist/css/tempus-dominus.min.css"
+
+# echo "⬇️  [6/6] Animations..."
+# curl -s -L -o "$TARGET_DIR/lib/wow/wow.min.js" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"
+
+# curl -s -L -o "$TARGET_DIR/lib/animate/animate.min.css" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+
+# curl -s -L -o "$TARGET_DIR/lib/waypoints/waypoints.min.js" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/jquery.waypoints.min.js"
+
+# curl -s -L -o "$TARGET_DIR/lib/easing/jquery.easing.min.js" \
+#   "https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"
+
+# # ==============================================================================
+# # 5. SAFE DEFAULT FILES
+# # ==============================================================================
+# [ -f "$TARGET_DIR/js/main.js" ] || touch "$TARGET_DIR/js/main.js"
+# [ -f "$TARGET_DIR/css/style.css" ] || touch "$TARGET_DIR/css/style.css"
+
+# echo "✅ SUCCESS: All static assets ready"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #!/bin/bash
+set -e
 
-# static directory to store css js boostrap others 
-TARGET_DIR="/app/oroshine_webapp/static"   
+# ==============================================================================
+# 1. PATH SETUP
+# ==============================================================================
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+TARGET_DIR="$SCRIPT_DIR/oroshine_webapp/static"
 
 echo "-----------------------------------------------------"
-echo "Starting Static File Download for OroShine Dental App"
-echo "Target Directory: $TARGET_DIR"
+echo "🚀 Bootstrap 5 Static Asset Pipeline"
+echo "📂 Script Root: $SCRIPT_DIR"
+echo "🎯 Target Dir:  $TARGET_DIR"
 echo "-----------------------------------------------------"
 
-# 1. Create Directory Structure
-echo "Creating directory structure..."
-mkdir -p "$TARGET_DIR/css"
-mkdir -p "$TARGET_DIR/js"
-mkdir -p "$TARGET_DIR/lib/animate"
-mkdir -p "$TARGET_DIR/lib/owlcarousel/assets"
-mkdir -p "$TARGET_DIR/lib/tempusdominus/css"
-mkdir -p "$TARGET_DIR/lib/tempusdominus/js"
-mkdir -p "$TARGET_DIR/lib/twentytwenty"
-mkdir -p "$TARGET_DIR/lib/wow"
-mkdir -p "$TARGET_DIR/lib/easing"
-mkdir -p "$TARGET_DIR/lib/waypoints"
+# ==============================================================================
+# 2. CLEANUP (REMOVE LEGACY LIBS)
+# ==============================================================================
+rm -rf "$TARGET_DIR/lib"
+rm -rf "$TARGET_DIR/webfonts"
+
+# ==============================================================================
+# 3. DIRECTORY STRUCTURE (BOOTSTRAP 5)
+# ==============================================================================
+mkdir -p "$TARGET_DIR/css" "$TARGET_DIR/js" "$TARGET_DIR/webfonts"
+
 mkdir -p "$TARGET_DIR/lib/jquery"
+mkdir -p "$TARGET_DIR/lib/owlcarousel/assets"
+mkdir -p "$TARGET_DIR/lib/animate"
+mkdir -p "$TARGET_DIR/lib/datepicker"
 mkdir -p "$TARGET_DIR/lib/fontawesome/css"
 mkdir -p "$TARGET_DIR/lib/fontawesome/webfonts"
-mkdir -p "$TARGET_DIR/lib/bootstrap-icons"
-mkdir -p "$TARGET_DIR/lib/bootstrap-icons/fonts"
+mkdir -p "$TARGET_DIR/lib/bootstrap-icons/font/fonts"
+mkdir -p "$TARGET_DIR/lib/twentytwenty"
 
+# ==============================================================================
+# 4. DOWNLOAD PIPELINE
+# ==============================================================================
 
-# 2. Download Core Bootstrap 5 & Custom JS
-echo "Downloading Bootstrap 5..."
-curl -L -o "$TARGET_DIR/css/bootstrap.min.css" "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-curl -L -o "$TARGET_DIR/js/bootstrap.bundle.min.js" "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+echo "⬇️  [1/6] Bootstrap 5..."
+curl -fsSL -o "$TARGET_DIR/css/bootstrap.min.css" \
+https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css
 
-# Create a placeholder main.js if it doesn't exist
-if [ ! -f "$TARGET_DIR/js/main.js" ]; then
-    echo "Creating default main.js..."
-    touch "$TARGET_DIR/js/main.js"
-fi
+curl -fsSL -o "$TARGET_DIR/js/bootstrap.bundle.min.js" \
+https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js
 
-# Create a placeholder style.css if it doesn't exist
-if [ ! -f "$TARGET_DIR/css/style.css" ]; then
-    echo "Creating default style.css..."
-    touch "$TARGET_DIR/css/style.css"
-fi
+echo "⬇️  [2/6] jQuery (Owl Carousel only)..."
+curl -fsSL -o "$TARGET_DIR/lib/jquery/jquery.min.js" \
+https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 
-# 3. Download jQuery (CRITICAL: Loaded first)
-echo "Downloading jQuery..."
-curl -L -o "$TARGET_DIR/lib/jquery/jquery.min.js" "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"
+echo "⬇️  [3/6] Font Awesome..."
+curl -fsSL -o "$TARGET_DIR/lib/fontawesome/css/all.min.css" \
+https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css
 
-# 4. Download Icon Libraries
-echo "Downloading FontAwesome (CSS & Webfonts)..."
-curl -L -o "$TARGET_DIR/lib/fontawesome/css/all.min.css" "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
-# Download essential webfonts referenced by all.min.css
-curl -L -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-solid-900.woff2" "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/webfonts/fa-solid-900.woff2"
-curl -L -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-brands-400.woff2" "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/webfonts/fa-brands-400.woff2"
-curl -L -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-regular-400.woff2" "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/webfonts/fa-regular-400.woff2"
+curl -fsSL -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-solid-900.woff2" \
+https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/webfonts/fa-solid-900.woff2
 
-echo "Downloading Bootstrap Icons..."
-curl -L -o "$TARGET_DIR/lib/bootstrap-icons/bootstrap-icons.css" "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-curl -L -o "$TARGET_DIR/lib/bootstrap-icons/fonts/bootstrap-icons.woff2" "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/fonts/bootstrap-icons.woff2"
+curl -fsSL -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-brands-400.woff2" \
+https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/webfonts/fa-brands-400.woff2
 
-# 5. Download Animation & Scroll Plugins
-echo "Downloading WOW.js & Animate.css..."
-curl -L -o "$TARGET_DIR/lib/wow/wow.min.js" "https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"
-curl -L -o "$TARGET_DIR/lib/animate/animate.min.css" "https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+curl -fsSL -o "$TARGET_DIR/lib/fontawesome/webfonts/fa-regular-400.woff2" \
+https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/webfonts/fa-regular-400.woff2
 
-echo "Downloading Easing & Waypoints..."
-curl -L -o "$TARGET_DIR/lib/easing/jquery.easing.min.js" "https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"
-curl -L -o "$TARGET_DIR/lib/waypoints/waypoints.min.js" "https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/jquery.waypoints.min.js"
+cp "$TARGET_DIR/lib/fontawesome/webfonts/"* "$TARGET_DIR/webfonts/"
 
-# 6. Download Owl Carousel
-echo "Downloading Owl Carousel..."
-curl -L -o "$TARGET_DIR/lib/owlcarousel/owl.carousel.min.js" "https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"
-curl -L -o "$TARGET_DIR/lib/owlcarousel/assets/owl.carousel.min.css" "https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css"
-curl -L -o "$TARGET_DIR/lib/owlcarousel/assets/owl.theme.default.min.css" "https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.theme.default.min.css"
+echo "⬇️  [4/6] Bootstrap Icons..."
+curl -fsSL -o "$TARGET_DIR/lib/bootstrap-icons/bootstrap-icons.css" \
+https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css
 
-# 7. Download Tempus Dominus (Datepicker)
-echo "Downloading Tempus Dominus..."
-# Note: Using version 6 to match the file naming convention, though HTML might need syntax updates for v6
-curl -L -o "$TARGET_DIR/lib/tempusdominus/js/tempus-dominus.min.js" "https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.7.16/dist/js/tempus-dominus.min.js"
-curl -L -o "$TARGET_DIR/lib/tempusdominus/css/tempus-dominus.min.css" "https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.7.16/dist/css/tempus-dominus.min.css"
+curl -fsSL -o "$TARGET_DIR/lib/bootstrap-icons/font/fonts/bootstrap-icons.woff2" \
+https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/fonts/bootstrap-icons.woff2
 
-# 8. Download TwentyTwenty (Image Comparison)
-echo "Downloading TwentyTwenty..."
-# These specific files are often not on standard CDNs as cleanly, downloading from raw git source or similar reliable cdn
-curl -L -o "$TARGET_DIR/lib/twentytwenty/jquery.twentytwenty.js" "https://raw.githubusercontent.com/zurb/twentytwenty/master/js/jquery.twentytwenty.js"
-curl -L -o "$TARGET_DIR/lib/twentytwenty/jquery.event.move.js" "https://raw.githubusercontent.com/stephband/jquery.event.move/master/js/jquery.event.move.js"
-curl -L -o "$TARGET_DIR/lib/twentytwenty/twentytwenty.css" "https://raw.githubusercontent.com/zurb/twentytwenty/master/css/twentytwenty.css"
+echo "⬇️  [5/6] UI Components..."
+curl -fsSL -o "$TARGET_DIR/lib/owlcarousel/owl.carousel.min.js" \
+https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js
 
-echo "-----------------------------------------------------"
-echo "Download Complete!"
-echo "Files have been saved to $TARGET_DIR"
-echo "Please run 'python manage.py collectstatic' if you are in production mode."
-echo "-----------------------------------------------------"
+curl -fsSL -o "$TARGET_DIR/lib/owlcarousel/assets/owl.carousel.min.css" \
+https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css
 
+curl -fsSL -o "$TARGET_DIR/lib/owlcarousel/assets/owl.theme.default.min.css" \
+https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.theme.default.min.css
 
+echo "⬇️  [6/6] Datepicker + Animations..."
+curl -fsSL -o "$TARGET_DIR/lib/datepicker/datepicker.min.js" \
+https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/js/datepicker.min.js
 
+curl -fsSL -o "$TARGET_DIR/lib/datepicker/datepicker.min.css" \
+https://cdn.jsdelivr.net/npm/vanillajs-datepicker@1.3.4/dist/css/datepicker.min.css
 
-echo "-----------------------------------------------------"
-echo "Download Complete!"
-echo "-----------------------------------------------------"
+curl -fsSL -o "$TARGET_DIR/lib/animate/animate.min.css" \
+https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css
+
+echo "⬇️  [Optional] TwentyTwenty..."
+curl -fsSL -o "$TARGET_DIR/lib/twentytwenty/jquery.twentytwenty.js" \
+https://raw.githubusercontent.com/zurb/twentytwenty/master/js/jquery.twentytwenty.js
+
+curl -fsSL -o "$TARGET_DIR/lib/twentytwenty/jquery.event.move.js" \
+https://raw.githubusercontent.com/stephband/jquery.event.move/master/js/jquery.event.move.js
+
+curl -fsSL -o "$TARGET_DIR/lib/twentytwenty/twentytwenty.css" \
+https://raw.githubusercontent.com/zurb/twentytwenty/master/css/twentytwenty.css
+
+# ==============================================================================
+# 5. SAFE DEFAULT FILES
+# ==============================================================================
+[ -f "$TARGET_DIR/js/main.js" ] || touch "$TARGET_DIR/js/main.js"
+[ -f "$TARGET_DIR/css/style.css" ] || touch "$TARGET_DIR/css/style.css"
+
+echo "✅ SUCCESS: Bootstrap 5 static assets ready"

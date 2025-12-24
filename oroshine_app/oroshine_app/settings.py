@@ -180,6 +180,10 @@ CACHES = {
     }
 }
 
+
+
+CACHE_MIDDLEWARE_SECOND= 900
+
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 604800  # 1 week

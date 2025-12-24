@@ -684,7 +684,7 @@ def book_appointment_ajax(request):
     """
     try:
         # Use the optimized form (No DB queries on init)
-        form = FastAppointmentForm(request.POST)
+        form = AppointmentForm(request.POST)
         
         if not form.is_valid():
             return JsonResponse({
@@ -764,7 +764,7 @@ def appointment(request):
 
     # 2. Standard POST (Fallback)
     if request.method == 'POST':
-        form = FastAppointmentForm(request.POST)
+        form = AppointmentForm(request.POST)
         if form.is_valid():
             try:
                 with transaction.atomic():
@@ -796,7 +796,7 @@ def appointment(request):
         else:
             messages.error(request, "Please check the form for errors.")
     else:
-        form = FastAppointmentForm()
+        form = AppointmentForm()
 
     # 3. GET Request: Load Sidebar (Cached)
     sidebar_key = f"sidebar_appt:{request.user.id}"
