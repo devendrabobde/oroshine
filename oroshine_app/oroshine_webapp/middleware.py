@@ -3,9 +3,57 @@ import logging
 from django.core.cache import cache
 from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
+from .metrics import appointment_bookings, appointment_booking_failures, email_send_total, email_send_failures
+import time
 
 logger = logging.getLogger(__name__)
 
+
+
+
+class BusinessMetricsMiddleware(MiddlewareMixin):
+    def process_response(self, request, response):
+        if request.path == '/appointment/' and request.method == 'POST':
+            if response.status_code == 200:
+                appointment_bookings.labels(
+                    status='success',
+                    service=request.POST.get('service', 'unknown')
+                ).inc()
+            elif response.status_code == 409:
+                appointment_booking_failures.labels(reason='slot_conflict').inc()
+            elif response.status_code >= 400:
+                appointment_booking_failures.labels(reason='validation_error').inc()
+        return respons
+
+
+
+
+
+class PrometheusMetricsMiddleware:
+    """
+    Add to settings.py:
+    'your_app.metrics.PrometheusMetricsMiddleware',
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        endpoint = request.path
+        if endpoint.startswith('/api/'):
+            endpoint = '/api/*'
+        elif endpoint.startswith('/metrics'):
+            endpoint = '/metrics'
+
+        http_requests_total.labels(
+            method=request.method,
+            endpoint=endpoint,
+            status=response.status_code
+        ).inc()
+
+        return response
 
 class RateLimitMiddleware(MiddlewareMixin):
     """Rate limiting middleware for API endpoints"""

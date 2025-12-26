@@ -5,10 +5,23 @@ from allauth.account.signals import user_signed_up
 from django.core.cache import cache
 from django.db import transaction
 import logging
+from .metrics import active_users, pending_appointments
+
 
 from .models import UserProfile
 
 logger = logging.getLogger(__name__)
+
+
+
+
+@receiver(post_save, sender=User)
+def track_active_users(sender, instance, created, **kwargs):
+    count = User.objects.filter(is_active=True).count()
+    active_users.set(count)
+
+
+
 
 
 @receiver(post_save, sender=User)

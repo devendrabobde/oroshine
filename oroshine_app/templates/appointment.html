@@ -1,184 +1,230 @@
 {% load static %}
-{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 
 {% include "head_template.html" %}
 
 <body>
-    {% include "header.html" %}
+{% include "header.html" %}
 
-    <!-- Hero Start -->
-    <div class="container-fluid bg-primary py-5 hero-header mb-5">
-        <div class="row py-3">
-            <div class="col-12 text-center">
-                <h1 class="display-3 text-white animated zoomIn">Appointment</h1>
-                <a href="{% url 'home' %}" class="h4 text-white">Home</a>
-                <i class="far fa-circle text-white px-2"></i>
-                <a href="{% url 'appointment' %}" class="h4 text-white">Appointment</a>
-            </div>
+<div class="container-fluid bg-primary py-5 hero-header mb-5">
+    <div class="row py-3">
+        <div class="col-12 text-center">
+            <h1 class="display-3 text-white">Appointment</h1>
+            <a href="{% url 'home' %}" class="h4 text-white">Home</a>
+            <i class="far fa-circle text-white px-2"></i>
+            <span class="h4 text-white">Appointment</span>
         </div>
     </div>
-    <!-- Hero End -->
+</div>
 
-    <!-- Appointment Start -->
-    <div class="container-fluid bg-primary bg-appointment mb-5 wow fadeInUp" data-wow-delay="0.1s"
-        style="margin-top: 90px;">
-        <div class="container">
-            <div class="row gx-5">
-                <div class="col-lg-6 py-5">
-                    <div class="py-5">
-                        <h1 class="display-5 text-white mb-4">
-                            We Are A Certified and Award Winning Dental Clinic You Can Trust
-                        </h1>
-                        <p class="text-white mb-0">
-                            Eirmod sed tempor lorem ut dolores. Aliquyam sit sadipscing kasd ipsum. Dolor ea et dolore
-                            et at sea ea at dolor, justo ipsum duo rebum sea invidunt voluptua. Eos vero eos vero ea et
-                            dolore eirmod et. Dolores diam duo invidunt lorem. Elitr ut dolores magna sit. Sea dolore
-                            sanctus sed et. Takimata takimata sanctus sed.
-                        </p>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="appointment-form h-100 d-flex flex-column justify-content-center text-center p-5 wow zoomIn"
-                        data-wow-delay="0.6s">
-                        <h1 class="text-white mb-4">Make Appointment</h1>
+<div class="container-fluid bg-primary bg-appointment mb-5" style="margin-top:90px;">
+    <div class="container">
+        <div class="row gx-5">
+            <div class="col-lg-6 py-5 text-white">
+                <h1 class="display-5 mb-4">
+                    Trusted Dental Care, Fast Booking
+                </h1>
+                <p>
+                    Select doctor and date to view live availability.
+                    Confirmation, email, and calendar updates happen in background.
+                </p>
+            </div>
 
-                        <!-- Enhanced Messages Section -->
-                        {% if messages %}
-                            {% for message in messages %}
-                                <div class="alert 
-                                    {% if 'error' in message.tags %} alert-danger 
-                                    {% elif 'success' in message.tags %} alert-success 
-                                    {% elif 'warning' in message.tags %} alert-warning 
-                                    {% else %} alert-info {% endif %}
-                                    alert-dismissible fade show mt-3" role="alert">
-                                    <strong>
-                                        {% if 'error' in message.tags %}❌ Error: 
-                                        {% elif 'success' in message.tags %}✅ Success: 
-                                        {% elif 'warning' in message.tags %}⚠ Warning: 
-                                        {% else %}ℹ Info: 
-                                        {% endif %}
-                                    </strong>
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
+            <div class="col-lg-6">
+                <div class="appointment-form p-5 text-center bg-white rounded shadow">
 
-                        <form method="POST" action="{% url 'appointment' %}">
-                            {% csrf_token %}
-                            <div class="row g-3">
+                    <h2 class="mb-4">Make Appointment</h2>
 
-                                <!-- Service Dropdown -->
-                                <div class="col-12 col-sm-6">
-                                    <select name="service" class="form-select bg-light border-0" style="height: 55px;" required>
-                                        <option value="" selected disabled>Select A Service</option>
-                                        <option value="General Checkup">General Checkup</option>
-                                        <option value="Teeth Cleaning">Teeth Cleaning</option>
-                                        <option value="Dental Filling">Dental Filling</option>
-                                        <option value="Tooth Extraction">Tooth Extraction</option>
-                                        <option value="Teeth Whitening">Teeth Whitening</option>
-                                        <option value="Orthodontics">Orthodontics</option>
-                                    </select>
-                                    {% if form.service.errors %}
-                                    <div class="text-danger small mt-1">{{ form.service.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
+                    <div id="alert-container"></div>
 
-                                <!-- Doctor Dropdown -->
-                                <div class="col-12 col-sm-6">
-                                    <select name="doctor_email" class="form-select bg-light border-0"
-                                        style="height: 55px;" required>
-                                        <option value="" selected disabled>Select Doctor</option>
-                                        <option value="nikhilchandurkar24@gmail.com">Dr. Worst Developer</option>
-                                        <option value="doctor.johnson@example.com">Dr. Johnson</option>
-                                        <option value="doctor.williams@example.com">Dr. Williams</option>
-                                        <option value="doctor.brown@example.com">Dr. Brown</option>
-                                    </select>
-                                    {% if form.doctor.errors %}
-                                    <div class="text-danger small mt-1">{{ form.doctor.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
+                    <form id="booking-form" method="post" action="{% url 'appointment' %}">
+                        {% csrf_token %}
 
-                                <!-- Name -->
-                                <div class="col-12 col-sm-6">
-                                    <input type="text" name="name"
-                                        class="form-control bg-light border-0 {% if form.name.errors %}is-invalid{% endif %}"
-                                        placeholder="Your Name" style="height: 55px;"
-                                        value="{{ form.name.value|default:'' }}" required>
-                                    {% if form.name.errors %}
-                                    <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
+                        <div class="row g-3">
 
-                                <!-- Email -->
-                                <div class="col-12 col-sm-6">
-                                    <input type="email" name="email"
-                                        class="form-control bg-light border-0 {% if form.email.errors %}is-invalid{% endif %}"
-                                        placeholder="Your Email" style="height: 55px;"
-                                        value="{{ form.email.value|default:'' }}" required>
-                                    {% if form.email.errors %}
-                                    <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Date -->
-                                <div class="col-12 col-sm-6">
-                                    <input type="date" name="date"
-                                        class="form-control bg-light border-0 {% if form.date.errors %}is-invalid{% endif %}"
-                                        style="height: 55px;" value="{{ form.date.value|default:'' }}"
-                                        min="{% now 'Y-m-d' %}" required>
-                                    {% if form.date.errors %}
-                                    <div class="text-danger small mt-1">{{ form.date.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Time -->
-                                <div class="col-12 col-sm-6">
-                                    <input type="time" name="time"
-                                        class="form-control bg-light border-0 {% if form.time.errors %}is-invalid{% endif %}"
-                                        style="height: 55px;" value="{{ form.time.value|default:'' }}" required>
-                                    {% if form.time.errors %}
-                                    <div class="text-danger small mt-1">{{ form.time.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Non-field Errors -->
-                                {% if form.non_field_errors %}
-                                <div class="col-12">
-                                    <div class="alert alert-danger mt-2">
-                                        {{ form.non_field_errors }}
-                                    </div>
-                                </div>
-                                {% endif %}
-
-                                <!-- Message -->
-                                <div class="col-12">
-                                    <textarea name="message" class="form-control bg-light border-0" rows="3"
-                                        placeholder="Additional Message (Optional)">{{ form.message.value|default:'' }}</textarea>
-                                    {% if form.message.errors %}
-                                    <div class="text-danger small mt-1">{{ form.message.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Submit -->
-                                <div class="col-12">
-                                    <button class="btn btn-dark w-100 py-3" type="submit">
-                                        <i class="fas fa-calendar-plus me-2"></i>Make Appointment
-                                    </button>
-                                </div>
-
+                            <!-- Service -->
+                            <div class="col-12 col-sm-6">
+                                <select name="service" class="form-select" required>
+                                    <option value="" disabled selected>Select Service</option>
+                                    {% for code, name in form.fields.service.choices %}
+                                        <option value="{{ code }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                        </form>
-                    </div>
+
+                            <!-- Doctor -->
+                            <div class="col-12 col-sm-6">
+                                <select name="doctor_email" id="doctor-select" class="form-select" required>
+                                    <option value="" disabled selected>Select Doctor</option>
+                                    {% for email, name in doctor_choices %}
+                                        <option value="{{ email }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Name -->
+                            <div class="col-12 col-sm-6">
+                                <input type="text" name="name" class="form-control"
+                                       value="{{ request.user.first_name }} {{ request.user.last_name }}"
+                                       placeholder="Your Name" required>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-12 col-sm-6">
+                                <input type="email" name="email" class="form-control"
+                                       value="{{ request.user.email }}"
+                                       placeholder="Your Email" required>
+                            </div>
+
+                            <!-- Date -->
+                            <div class="col-12 col-sm-6">
+                                <input type="date" name="date" id="date-select"
+                                       class="form-control"
+                                       min="{% now 'Y-m-d' %}" required>
+                            </div>
+
+                            <!-- Time -->
+                            <div class="col-12 col-sm-6">
+                                <select name="time" id="time-select" class="form-select" required disabled>
+                                    <option>Select date and doctor first</option>
+                                </select>
+                            </div>
+
+                            <!-- Message -->
+                            <div class="col-12">
+                                <textarea name="message" class="form-control" rows="3"
+                                          placeholder="Optional message"></textarea>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="col-12">
+                                <button id="submit-btn" type="submit"
+                                        class="btn btn-dark w-100 py-3">
+                                    Confirm Appointment
+                                </button>
+                            </div>
+
+                        </div>
+                    </form>
+
                 </div>
             </div>
         </div>
     </div>
-    <!-- Appointment End -->
+</div>
 
-    {% include "footer.html" %}
+{% include "footer.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const doctorSelect = document.getElementById('doctor-select');
+    const dateSelect   = document.getElementById('date-select');
+    const timeSelect   = document.getElementById('time-select');
+    const form         = document.getElementById('booking-form');
+    const alertBox     = document.getElementById('alert-container');
+    const submitBtn    = document.getElementById('submit-btn');
+
+    function showAlert(message, type='success') {
+        alertBox.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show">
+                ${message}
+                <button class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`;
+    }
+
+    /* -----------------------------
+       Fetch Slots (Redis-backed)
+    ------------------------------*/
+    function fetchSlots() {
+        if (!doctorSelect.value || !dateSelect.value) return;
+
+        timeSelect.disabled = true;
+        timeSelect.innerHTML = '<option>Loading...</option>';
+
+        const fd = new FormData();
+        fd.append('doctor_email', doctorSelect.value);
+        fd.append('date', dateSelect.value);
+        fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'check_slots_ajax' %}", {
+            method: 'POST',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            body: fd
+        })
+        .then(res => res.json())
+        .then(data => {
+            timeSelect.innerHTML = '';
+            if (data.status !== 'success') {
+                timeSelect.innerHTML = '<option>Error</option>';
+                return;
+            }
+
+            let available = false;
+            data.slots.forEach(slot => {
+                const opt = document.createElement('option');
+                opt.value = slot.time;
+                opt.textContent = slot.display;
+
+                if (!slot.is_available) {
+                    opt.disabled = true;
+                    opt.textContent += ' (Booked)';
+                } else {
+                    available = true;
+                }
+                timeSelect.appendChild(opt);
+            });
+
+            timeSelect.disabled = !available;
+        });
+    }
+
+    doctorSelect.addEventListener('change', fetchSlots);
+    dateSelect.addEventListener('change', fetchSlots);
+
+    /* -----------------------------
+       Optimistic Booking Submit
+    ------------------------------*/
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Booking...';
+
+        // UI FIRST (Optimistic)
+        showAlert('Appointment request submitted. Processing...', 'success');
+
+        const fd = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            body: fd
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                showAlert(data.message || 'Booking failed', 'danger');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Confirm Appointment';
+                return;
+            }
+
+            form.reset();
+            timeSelect.disabled = true;
+            timeSelect.innerHTML = '<option>Select date and doctor first</option>';
+
+            if (data.redirect_url) {
+                setTimeout(() => window.location.href = data.redirect_url, 1200);
+            }
+        })
+        .catch(() => {
+            showAlert('Network error. Please retry.', 'danger');
+        });
+    });
+});
+</script>
+
 </body>
-
 </html>

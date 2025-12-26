@@ -1,20 +1,21 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Appointment, UserProfile
+from .models import UserProfile,Appointment,DOCTOR_CHOICES,TIME_SLOTS
+from .services_cache import get_service_tuples
 
 
 class NewUserForm(UserCreationForm):
-    email = forms.EmailField(required=True)
-    first_name = forms.CharField(max_length=100, required=True)
-    last_name = forms.CharField(max_length=100, required=True)
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address'}))
+    first_name = forms.CharField(max_length=100, required=True, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'}))
+    last_name = forms.CharField(max_length=100, required=True, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'}))
 
     class Meta:
         model = User
-        fields = ("username", "first_name", "last_name", "email", "password1", "password2")
+        fields = ("username", "first_name", "last_name", "email")
 
     def save(self, commit=True):
-        user = super(NewUserForm, self).save(commit=False)
+        user = super().save(commit=False)
         user.email = self.cleaned_data['email']
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
@@ -23,31 +24,10 @@ class NewUserForm(UserCreationForm):
         return user
 
 
-class AppointmentForm(forms.ModelForm):
-    class Meta:
-        model = Appointment
-        fields = ['service', 'doctor_email', 'name', 'email', 'phone', 'date', 'time', 'message']
-        widgets = {
-            'date': forms.DateInput(attrs={
-                'type': 'date',
-                'class': 'form-control',
-                'min': '',  # Set in JavaScript
-            }),
-            'time': forms.Select(attrs={'class': 'form-control'}),
-            'service': forms.Select(attrs={'class': 'form-control'}),
-            'doctor_email': forms.Select(attrs={'class': 'form-control'}),
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
-            'message': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-        }
-
-
 class UserProfileForm(forms.ModelForm):
-    # User fields
-    first_name = forms.CharField(max_length=100, required=False)
-    last_name = forms.CharField(max_length=100, required=False)
-    email = forms.EmailField(required=True)
+    first_name = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class': 'form-control'}))
 
     class Meta:
         model = UserProfile
@@ -70,17 +50,14 @@ class UserProfileForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        super(UserProfileForm, self).__init__(*args, **kwargs)
-        # Pre-fill user fields
+        super().__init__(*args, **kwargs)
         if self.instance and self.instance.user:
             self.fields['first_name'].initial = self.instance.user.first_name
             self.fields['last_name'].initial = self.instance.user.last_name
             self.fields['email'].initial = self.instance.user.email
 
     def save(self, commit=True):
-        profile = super(UserProfileForm, self).save(commit=False)
-        
-        # Update user fields
+        profile = super().save(commit=False)
         user = profile.user
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
@@ -91,3 +68,22 @@ class UserProfileForm(forms.ModelForm):
             profile.save()
         
         return profile
+
+
+
+
+
+class AppointmentForm(forms.Form):
+    service = forms.ChoiceField()
+    doctor_email = forms.ChoiceField(choices=DOCTOR_CHOICES)
+    name = forms.CharField(max_length=100)
+    email = forms.EmailField()
+    phone = forms.CharField(required=False)
+    date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    time = forms.ChoiceField(choices=TIME_SLOTS)
+    message = forms.CharField(required=False, widget=forms.Textarea)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # tuple cache → ultra fast
+        self.fields['service'].choices = get_service_tuples()

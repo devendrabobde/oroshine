@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Contact, Appointment, UserProfile
-
+from .models import Contact, Appointment, UserProfile, Service
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
@@ -10,131 +9,71 @@ class UserProfileAdmin(admin.ModelAdmin):
     search_fields = ['user__username', 'user__email', 'phone', 'city']
     readonly_fields = ['created_at', 'updated_at', 'avatar_preview']
     
+    # Optimization: prevents N+1 query for the User table
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
+
     fieldsets = (
-        ('User Information', {
-            'fields': ('user', 'phone', 'date_of_birth')
-        }),
-        ('Address', {
-            'fields': ('address', 'city', 'state', 'zip_code')
-        }),
-        ('Emergency Contact', {
-            'fields': ('emergency_contact_name', 'emergency_contact_phone')
-        }),
-        ('Medical Information', {
-            'fields': ('medical_history', 'allergies')
-        }),
-        ('Profile Picture', {
-            'fields': ('avatar', 'avatar_preview')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        ('User Information', {'fields': ('user', 'phone', 'date_of_birth')}),
+        ('Address', {'fields': ('address', 'city', 'state', 'zip_code')}),
+        ('Medical', {'fields': ('emergency_contact_name', 'emergency_contact_phone', 'medical_history', 'allergies')}),
+        ('Visuals', {'fields': ('avatar', 'avatar_preview')}),
     )
 
     def avatar_preview(self, obj):
         if obj.avatar:
-            return format_html('<img src="{}" width="100" height="100" style="border-radius: 50%;" />', obj.avatar.url)
-        return "No avatar"
-    avatar_preview.short_description = 'Avatar Preview'
+            return format_html('<img src="{}" width="50" height="50" style="border-radius:50%;" />', obj.avatar.url)
+        return "No Img"
 
 
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email', 'subject', 'is_resolved', 'created_at', 'user_link']
+    list_display = ['name', 'email', 'subject', 'is_resolved', 'created_at']
     list_filter = ['is_resolved', 'created_at']
-    search_fields = ['name', 'email', 'subject', 'message']
-    readonly_fields = ['created_at', 'user', 'resolved_at']
-    date_hierarchy = 'created_at'
-    
-    fieldsets = (
-        ('Contact Information', {
-            'fields': ('user', 'name', 'email', 'subject')
-        }),
-        ('Message', {
-            'fields': ('message',)
-        }),
-        ('Status', {
-            'fields': ('is_resolved', 'resolved_at')
-        }),
-        ('Timestamp', {
-            'fields': ('created_at',)
-        }),
-    )
-    
-    actions = ['mark_as_resolved', 'mark_as_unresolved']
+    search_fields = ['name', 'email', 'subject']
+    readonly_fields = ['created_at', 'resolved_at']
+    actions = ['mark_resolved']
 
-    def user_link(self, obj):
-        if obj.user:
-            return format_html('<a href="/admin/auth/user/{}/change/">{}</a>', obj.user.id, obj.user.username)
-        return "Anonymous"
-    user_link.short_description = 'User'
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
 
-    def mark_as_resolved(self, request, queryset):
+    def mark_resolved(self, request, queryset):
         from django.utils import timezone
-        updated = queryset.update(is_resolved=True, resolved_at=timezone.now())
-        self.message_user(request, f'{updated} contact(s) marked as resolved.')
-    mark_as_resolved.short_description = 'Mark selected as resolved'
-
-    def mark_as_unresolved(self, request, queryset):
-        updated = queryset.update(is_resolved=False, resolved_at=None)
-        self.message_user(request, f'{updated} contact(s) marked as unresolved.')
-    mark_as_unresolved.short_description = 'Mark selected as unresolved'
+        queryset.update(is_resolved=True, resolved_at=timezone.now())
+    mark_resolved.short_description = "Mark selected messages as Resolved"
 
 
 @admin.register(Appointment)
 class AppointmentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'service', 'doctor_email', 'date', 'time', 'status', 'created_at', 'status_badge']
-    list_filter = ['status', 'service', 'date', 'doctor_email', 'created_at']
+    list_display = ['id', 'user_link', 'doctor_email', 'service', 'date', 'time', 'status_badge']
+    list_filter = ['status', 'date', 'doctor_email', 'service']
     search_fields = ['name', 'email', 'phone', 'user__username']
-    readonly_fields = ['created_at', 'updated_at', 'user', 'calendar_event_id']
+    readonly_fields = ['created_at', 'updated_at']
+    actions = ['confirm_appt', 'cancel_appt', 'complete_appt']
     date_hierarchy = 'date'
-    
-    fieldsets = (
-        ('Patient Information', {
-            'fields': ('user', 'name', 'email', 'phone')
-        }),
-        ('Appointment Details', {
-            'fields': ('service', 'doctor_email', 'date', 'time', 'message')
-        }),
-        ('Status', {
-            'fields': ('status', 'calendar_event_id')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    actions = ['confirm_appointments', 'cancel_appointments', 'mark_completed']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
+
+    def user_link(self, obj):
+        return obj.user.username
+    user_link.short_description = 'User'
 
     def status_badge(self, obj):
-        colors = {
-            'pending': '#ffc107',
-            'confirmed': '#28a745',
-            'cancelled': '#dc3545',
-            'completed': '#6c757d'
-        }
-        color = colors.get(obj.status, '#6c757d')
+        colors = {'pending': '#ffc107', 'confirmed': '#28a745', 'cancelled': '#dc3545', 'completed': '#6c757d'}
         return format_html(
-            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>',
-            color,
-            obj.get_status_display()
+            '<span style="background:{}; color:#fff; padding:3px 8px; border-radius:3px;">{}</span>',
+            colors.get(obj.status, '#333'), obj.get_status_display()
         )
     status_badge.short_description = 'Status'
 
-    def confirm_appointments(self, request, queryset):
-        updated = queryset.update(status='confirmed')
-        self.message_user(request, f'{updated} appointment(s) confirmed.')
-    confirm_appointments.short_description = 'Confirm selected appointments'
+    def confirm_appt(self, request, queryset): queryset.update(status='confirmed')
+    def cancel_appt(self, request, queryset): queryset.update(status='cancelled')
+    def complete_appt(self, request, queryset): queryset.update(status='completed')
 
-    def cancel_appointments(self, request, queryset):
-        updated = queryset.update(status='cancelled')
-        self.message_user(request, f'{updated} appointment(s) cancelled.')
-    cancel_appointments.short_description = 'Cancel selected appointments'
 
-    def mark_completed(self, request, queryset):
-        updated = queryset.update(status='completed')
-        self.message_user(request, f'{updated} appointment(s) marked as completed.')
-    mark_completed.short_description = 'Mark as completed'
-
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'price', 'is_active')
+    list_editable = ('price', 'is_active')
+    search_fields = ('name', 'code')

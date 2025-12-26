@@ -21,6 +21,11 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1',
                        cast=lambda v: [s.strip() for s in v.split(',')])
 
+
+
+#  for test vurnable 
+
+
 # Security enhancements
 SECURE_SSL_REDIRECT = False     # true when add ss certificate to redirect to https port all below 
 SESSION_COOKIE_SECURE = False 
@@ -47,6 +52,7 @@ SECURE_CROSS_ORIGIN_RESOURCE_POLICY = None
 # APPLICATION DEFINITION
 # ==========================================
 INSTALLED_APPS = [
+    'django_prometheus',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -64,7 +70,8 @@ INSTALLED_APPS = [
     'django_minify_html',
     'imagekit',
     'django.contrib.humanize',
-    'tempus_dominus',
+    # 'tempus_dominus',
+    # 'django_celery_results',
 
     # Social authentication
     'allauth',
@@ -72,6 +79,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.linkedin_oauth2',
+
+
 
     # Your app
     'oroshine_webapp',
@@ -97,6 +106,7 @@ SITE_ID = 1
 
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -106,6 +116,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'oroshine_webapp.middleware.RateLimitMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
+    'oroshine_webapp.metrics.PrometheusMetricsMiddleware',
+
 
     # Page cache should be AFTER user auth, not before! causing issue to test commented 
     # 'django.middleware.cache.UpdateCacheMiddleware',
@@ -189,27 +203,63 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 # ==========================================
 # CELERY CONFIGURATION
 # ==========================================
+
+# ==========================================
+# CELERY CONFIGURATION (IMPROVED)
+# ==========================================
 CELERY_BROKER_URL = config('CELERY_BROKER_URL')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Kolkata'
+
+# Task tracking
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 CELERY_RESULT_EXTENDED = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-CELERY_BEAT_SCHEDULE = {
-    'check-appointment-reminders': {
-        'task': 'oroshine_webapp.tasks.check_and_send_reminders',
-        'schedule': 3600.0,
-    },
+# Worker settings
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # One task at a time
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 50  # Restart after 50 tasks
+CELERY_TASK_ACKS_LATE = True  # Acknowledge after completion
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
+# Retry settings
+CELERY_TASK_DEFAULT_RETRY_DELAY = 60  # 1 minute
+CELERY_TASK_MAX_RETRIES = 3
+
+
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+
+# Beat schedule (keep your existing schedule)
+# CELERY_BEAT_SCHEDULE = {
+#     'check-appointment-reminders': {
+#         'task': 'oroshine_webapp.tasks.check_and_send_reminders',
+#         'schedule': 3600.0,  # Every hour
+#     },
+# }
+
+# Task routes (keep your existing routes)
+CELERY_TASK_ROUTES = {
+    "oroshine_webapp.tasks.send_appointment_email_task": {"queue": "email"},
+    "oroshine_webapp.tasks.send_contact_email_task": {"queue": "email"},
+    "oroshine_webapp.tasks.send_appointment_reminder_task": {"queue": "email"},
+    "oroshine_webapp.tasks.create_calendar_event_task": {"queue": "calendar"},
+    # "oroshine_webapp.tasks.download_social_avatar_task": {"queue": "cpu"},
 }
 
-
+# Rate limits
 CELERY_TASK_ANNOTATIONS = {
-    'oroshine_webapp.tasks.send_appointment_email_task': {'rate_limit': '10/m'}, # 10 emails per minute
+    'oroshine_webapp.tasks.send_appointment_email_task': {
+        'rate_limit': '10/m',  # 10 emails per minute
+        'time_limit': 300,  # 5 minutes max
+    },
 }
 
 # ==========================================
@@ -361,7 +411,7 @@ COMPRESS_CSS_FILTERS = [
 COMPRESS_JS_FILTERS = ['compressor.filters.jsmin.JSMinFilter']
 
 # ==========================================
-# EMAIL CONFIGURATION
+# EMAIL CONFIGURATION and nocode api (caakender event )
 # ==========================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
@@ -371,6 +421,8 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 ADMIN_EMAIL = config('ADMIN_EMAIL', default=EMAIL_HOST_USER)
+
+NOCODEAPI_BASE_URL = config('NOCODEAPI_BASE_URL')
 
 # ==========================================
 # LOGGING
@@ -406,24 +458,24 @@ LOGGING = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 # Development tools
-# if DEBUG:
-#     INSTALLED_APPS += ["debug_toolbar"]
-#     MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+if DEBUG:
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
-#     # Allow toolbar in Docker
-#     import socket
-#     hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
-#     INTERNAL_IPS = [
-#         "127.0.0.1",
-#         "localhost",
-#     ] + [".".join(ip.split(".")[:-1] + ["1"]) for ip in ips]
+    # Allow toolbar in Docker
+    import socket
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+    INTERNAL_IPS = [
+        "127.0.0.1",
+        "localhost",
+    ] + [".".join(ip.split(".")[:-1] + ["1"]) for ip in ips]
 
-#     DEBUG_TOOLBAR_CONFIG = {
-#         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
-#         'INTERCEPT_REDIRECTS': False
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+        'INTERCEPT_REDIRECTS': False
 
 
-#     }
+    }
 
 
 

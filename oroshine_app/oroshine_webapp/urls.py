@@ -8,6 +8,7 @@ urlpatterns = [
     # alredy register in app/urls.py
     # path('admin/', admin.site.urls),
     path("accounts/", include("allauth.urls")),
+    path('metrics/', views.prometheus_metrics, name='prometheus-metrics'),
 
     # ==========================================
     # MAIN PAGES
@@ -21,7 +22,7 @@ urlpatterns = [
     path("service/", views.service, name="service"),
     path("team/", views.team, name="team"),
     path("testimonial/", views.testimonial, name="testimonial"),
-    path("newsletter/", views.newsletter, name="newsletter"),
+    # path("newsletter/", views.newsletter, name="newsletter"),
 
     # ==========================================
     # AUTHENTICATION
@@ -40,9 +41,9 @@ urlpatterns = [
     # ==========================================
     # AJAX ENDPOINTS
     # ==========================================
-    path("api/check-slots/", views.check_available_slots, name="check_slots_ajax"),
-    path("api/book-appointment/", views.book_appointment_ajax, name="book_appointment_ajax"),
-    path("api/login/", views.login_ajax, name="login_ajax"),
+    path("api/check-slots/", views.check_slots_ajax, name="check_slots_ajax"),
+    # path("api/book-appointment/", views.book_appointment_ajax, name="book_appointment_ajax"),
+    # path("api/login/", views.login_ajax, name="login_ajax"),
     path("api/check-availability/", views.check_availability, name="check_availability"),
 ]
 

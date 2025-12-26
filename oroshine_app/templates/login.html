@@ -17,18 +17,22 @@
 
                 <h1 class="mb-4">Login</h1>
 
-                <!-- AJAX ALERT BOX -->
-                <div id="login-alert" class="alert alert-danger d-none" role="alert"></div>
+                <!-- Django Messages -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
 
-                <form id="login-form" method="POST">
+                <!-- NORMAL DJANGO LOGIN FORM -->
+                <form method="POST" action="{% url 'custom_login' %}">
                     {% csrf_token %}
                     {{ login_form|crispy }}
-                    {% csrf_token %}
 
-
-                    <button id="login-btn" class="btn btn-primary w-100" type="submit">
-                        <span id="btn-text">Login</span>
-                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                    <button class="btn btn-primary w-100" type="submit">
+                        Login
                     </button>
                 </form>
 
@@ -46,16 +50,15 @@
 
                     {% for provider in providers %}
                     <a href="{% provider_login_url provider.id %}"
-                        class="btn btn-light border w-100 d-flex align-items-center justify-content-center gap-2 py-2">
-                        <img src="https://developers.google.com/identity/images/g-logo.png" alt="{{ provider.name }}"
-                            style="width: 20px; height: 20px;">
+                       class="btn btn-light border w-100 d-flex align-items-center justify-content-center gap-2 py-2">
+                        <img src="https://developers.google.com/identity/images/g-logo.png"
+                             alt="{{ provider.name }}"
+                             style="width: 20px; height: 20px;">
                         <span class="fw-bold">Continue with {{ provider.name }}</span>
                     </a>
                     {% endfor %}
                 </div>
                 {% endif %}
-
-
 
             </div>
         </div>
@@ -63,67 +66,5 @@
 
     {% include "footer.html" %}
 
-    <script>
-        const loginForm = document.getElementById('login-form');
-        const alertBox = document.getElementById('login-alert');
-        const btn = document.getElementById('login-btn');
-        const btnText = document.getElementById('btn-text');
-        const btnSpinner = document.getElementById('btn-spinner');
-
-        loginForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-
-            btn.disabled = true;
-            btnText.textContent = "Logging in...";
-            btnSpinner.classList.remove('d-none');
-            alertBox.classList.add('d-none');
-
-            const formData = new FormData(loginForm);
-
-            fetch("{% url 'login_ajax' %}", {
-                method: "POST",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRFToken": formData.get("csrfmiddlewaretoken")
-                },
-                body: formData
-            })
-                .then(r => {
-                    if (r.status === 429) return r.json().then(x => { throw new Error(x.message); });
-                    return r.json();
-                })
-                .then(data => {
-                    if (data.status === "success") {
-                        alertBox.className = "alert alert-success";
-                        alertBox.textContent = data.message;
-                        alertBox.classList.remove("d-none");
-
-                        setTimeout(() => {
-                            window.location.href = data.redirect_url || "/";
-                        }, 500);
-
-                    } else {
-                        alertBox.className = "alert alert-danger";
-                        alertBox.textContent = data.message;
-                        alertBox.classList.remove("d-none");
-
-                        btn.disabled = false;
-                        btnText.textContent = "Login";
-                        btnSpinner.classList.add('d-none');
-                    }
-                })
-                .catch(err => {
-                    alertBox.className = "alert alert-danger";
-                    alertBox.textContent = err.message || "Unexpected error!";
-                    alertBox.classList.remove("d-none");
-
-                    btn.disabled = false;
-                    btnText.textContent = "Login";
-                    btnSpinner.classList.add('d-none');
-                });
-        });
-    </script>
-
 </body>
-
 </html>

@@ -1,0 +1,103 @@
+# Prometheus Configuration for Oroshine
+# Optimized for t2.micro with minimal resource usage
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  scrape_timeout: 10s
+  external_labels:
+    cluster: 'oroshine-production'
+    environment: 'prod'
+
+# Filter out unwanted metrics to reduce storage and processing
+metric_relabel_configs:
+  # Drop Python GC metrics (too verbose)
+  - source_labels: [__name__]
+    regex: 'python_gc_.*'
+    action: drop
+  
+  # Drop process metrics we don't need
+  - source_labels: [__name__]
+    regex: 'process_(virtual_memory_bytes|resident_memory_bytes|open_fds|max_fds)'
+    action: keep
+  
+  # Drop process metrics not in keep list
+  - source_labels: [__name__]
+    regex: 'process_.*'
+    action: drop
+
+scrape_configs:
+  # Django Application Metrics
+  - job_name: 'django-app'
+    static_configs:
+      - targets: ['web:8000']
+    metrics_path: '/metrics/'
+    scrape_interval: 30s
+    metric_relabel_configs:
+      # Keep only business metrics
+      - source_labels: [__name__]
+        regex: 'appointment_.*|email_.*|calendar_.*|active_.*|pending_.*|celery_.*'
+        action: keep
+      
+      # Keep important Django metrics
+      - source_labels: [__name__]
+        regex: 'django_http_requests_total.*|django_http_responses_total.*|django_http_requests_latency.*'
+        action: keep
+      
+      # Keep model operation metrics
+      - source_labels: [__name__]
+        regex: 'django_model_(inserts|updates|deletes)_total'
+        action: keep
+      
+      # Keep migration metrics
+      - source_labels: [__name__]
+        regex: 'django_migrations_(applied|unapplied)_total'
+        action: keep
+      
+      # Drop all other Django metrics
+      - source_labels: [__name__]
+        regex: 'django_.*'
+        action: drop
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 60s
+
+  # Node Exporter - System Metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node_exporter:9100']
+    scrape_interval: 30s
+    metric_relabel_configs:
+      # Keep only essential system metrics
+      - source_labels: [__name__]
+        regex: 'node_cpu_seconds_total|node_memory_.*|node_filesystem_.*|node_network_.*|node_disk_.*|node_load.*'
+        action: keep
+      
+      # Drop everything else
+      - source_labels: [__name__]
+        regex: 'node_.*'
+        action: drop
+
+  # cAdvisor - Container Metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    metric_relabel_configs:
+      # Keep only container CPU and memory metrics
+      - source_labels: [__name__]
+        regex: 'container_(cpu_.*|memory_.*|network_.*|fs_.*)'
+        action: keep
+      
+      # Filter out POD metrics
+      - source_labels: [container_label_com_docker_compose_project]
+        regex: ''
+        action: drop
+      
+      # Drop everything else
+      - source_labels: [__name__]
+        regex: 'container_.*'
+        action: drop

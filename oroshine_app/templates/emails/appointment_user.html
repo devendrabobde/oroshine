@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Your Appointment is Booked!</h2>
+
+    <p>Dear {{ appointment.name }},</p>
+
+    <p>Your dental appointment has been successfully scheduled.</p>
+
+    <ul>
+        <li><strong>Service:</strong> {{ appointment.service }}</li>
+        <li><strong>Date:</strong> {{ appointment.date }}</li>
+        <li><strong>Time:</strong> {{ appointment.time }}</li>
+        <li><strong>Doctor:</strong> {{ appointment.doctor_email }}</li>
+    </ul>
+
+    <p>Status: <strong>{{ appointment.status|title }}</strong></p>
+
+    <p>Thank you for choosing OroShine Dental Care.</p>
+
+    <small>Booked at {{ timestamp }}</small>
+</body>
+</html>

@@ -155,3 +155,321 @@ jobs:
         run: |
           echo "✅ Deployment completed!"
           echo "🔗 Application: http://13.204.135.217"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#  version 2 if work then use this later  future  
+
+
+
+
+
+
+# # .github/workflows/ci-cd.yml
+# name: CI/CD Pipeline  and deployemt 
+
+# on:
+#   push:
+#     branches: [ main, develop, master  ]
+#   pull_request:
+#     branches: [ main, develop,master  ]
+
+# env:
+#   PYTHON_VERSION: '3.11'
+#   POSTGRES_DB: test_oroshine
+#   POSTGRES_USER: postgres
+#   POSTGRES_PASSWORD: postgres
+#   REDIS_PASSWORD: testredis
+
+# jobs:
+#   # Linting and code quality
+#   lint:
+#     name: Code Quality Checks
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Set up Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: ${{ env.PYTHON_VERSION }}
+#           cache: 'pip'
+      
+#       - name: Install dependencies
+#         run: |
+#           pip install flake8 black pylint bandit
+#           pip install -r requirements.txt
+      
+#       - name: Run flake8
+#         run: flake8 oroshine_webapp --max-line-length=100 --exclude=migrations
+#         continue-on-error: true
+      
+#       - name: Check code formatting
+#         run: black --check oroshine_webapp --exclude=migrations
+#         continue-on-error: true
+      
+#       - name: Run security scan
+#         run: bandit -r oroshine_webapp -x */migrations/*
+#         continue-on-error: true
+
+#   # Unit tests
+#   test:
+#     name: Run Tests
+#     runs-on: ubuntu-latest
+#     needs: lint
+    
+#     services:
+#       postgres:
+#         image: postgres:15-alpine
+#         env:
+#           POSTGRES_DB: ${{ env.POSTGRES_DB }}
+#           POSTGRES_USER: ${{ env.POSTGRES_USER }}
+#           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+#         options: >-
+#           --health-cmd pg_isready
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+#         ports:
+#           - 5432:5432
+      
+#       redis:
+#         image: redis:7-alpine
+#         options: >-
+#           --health-cmd "redis-cli ping"
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+#         ports:
+#           - 6379:6379
+    
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Set up Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: ${{ env.PYTHON_VERSION }}
+#           cache: 'pip'
+      
+#       - name: Install dependencies
+#         run: |
+#           pip install -r requirements.txt
+#           pip install coverage
+      
+#       - name: Create .env file
+#         run: |
+#           cat > .env << EOF
+#           DEBUG=True
+#           SECRET_KEY=test-secret-key-for-ci
+#           ALLOWED_HOSTS=localhost,127.0.0.1
+#           PG_DB=${{ env.POSTGRES_DB }}
+#           PG_USER=${{ env.POSTGRES_USER }}
+#           PG_PASSWORD=${{ env.POSTGRES_PASSWORD }}
+#           PG_HOST=localhost
+#           PG_PORT=5432
+#           REDIS_PASSWORD=${{ env.REDIS_PASSWORD }}
+#           REDIS_HOST=localhost
+#           REDIS_PORT=6379
+#           REDIS_DB=0
+#           CELERY_BROKER_URL=redis://localhost:6379/0
+#           CELERY_RESULT_BACKEND=redis://localhost:6379/0
+#           EMAIL_HOST=smtp.gmail.com
+#           EMAIL_HOST_USER=test@example.com
+#           EMAIL_HOST_PASSWORD=testpass
+#           NOCODEAPI_BASE_URL=https://example.com
+#           EOF
+      
+#       - name: Run migrations
+#         run: python manage.py migrate --noinput
+      
+#       - name: Run tests with coverage
+#         run: |
+#           coverage run manage.py test
+#           coverage report -m
+#           coverage xml
+      
+#       - name: Upload coverage to Codecov
+#         uses: codecov/codecov-action@v3
+#         with:
+#           file: ./coverage.xml
+#           flags: unittests
+#           name: codecov-umbrella
+      
+#       - name: Generate test report
+#         if: always()
+#         run: |
+#           python manage.py test oroshine_webapp.tests --verbosity=2 > test_report.txt || true
+      
+#       - name: Upload test report
+#         if: always()
+#         uses: actions/upload-artifact@v3
+#         with:
+#           name: test-report
+#           path: test_report.txt
+
+#   # Security checks
+#   security:
+#     name: Security Scan
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Set up Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: ${{ env.PYTHON_VERSION }}
+      
+#       - name: Install dependencies
+#         run: |
+#           pip install -r requirements.txt
+#           pip install safety
+      
+#       - name: Check for vulnerabilities
+#         run: safety check --json || true
+      
+#       - name: Run Django security check
+#         run: python manage.py check --deploy --fail-level WARNING
+
+#   # Build Docker image
+#   build:
+#     name: Build Docker Image
+#     runs-on: ubuntu-latest
+#     needs: test
+#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v2
+      
+#       - name: Log in to Docker Hub
+#         uses: docker/login-action@v2
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
+      
+#       - name: Build and push Docker image
+#         uses: docker/build-push-action@v4
+#         with:
+#           context: .
+#           file: ./Dockerfile.prod
+#           push: true
+#           tags: |
+#             ${{ secrets.DOCKER_USERNAME }}/oroshine:latest
+#             ${{ secrets.DOCKER_USERNAME }}/oroshine:${{ github.sha }}
+#           cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/oroshine:latest
+#           cache-to: type=inline
+
+#   # Deploy to production
+#   deploy:
+#     name: Deploy to Production
+#     runs-on: ubuntu-latest
+#     needs: build
+#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+#     environment: production
+    
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Deploy to EC2
+#         uses: appleboy/ssh-action@master
+#         with:
+#           host: ${{ secrets.EC2_HOST }}
+#           username: ubuntu
+#           key: ${{ secrets.EC2_SSH_KEY }}
+#           script: |
+#             cd /home/ubuntu/oroshine
+            
+#             # Backup database
+#             ./deploy.sh backup
+            
+#             # Pull latest code
+#             git pull origin main
+            
+#             # Pull latest Docker images
+#             docker-compose -f docker-compose.prod.yml pull
+            
+#             # Deploy
+#             ./deploy.sh deploy
+            
+#             # Check health
+#             sleep 10
+#             ./deploy.sh status
+      
+#       - name: Notify deployment
+#         if: always()
+#         run: |
+#           if [ "${{ job.status }}" == "success" ]; then
+#             echo "✅ Deployment successful"
+#           else
+#             echo "❌ Deployment failed"
+#           fi
+      
+#       - name: Send notification
+#         if: always()
+#         uses: 8398a7/action-slack@v3
+#         with:
+#           status: ${{ job.status }}
+#           text: 'Deployment to production ${{ job.status }}'
+#           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+#         env:
+#           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+#   # Performance tests
+#   performance:
+#     name: Performance Tests
+#     runs-on: ubuntu-latest
+#     needs: test
+#     if: github.event_name == 'pull_request'
+    
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Set up Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: ${{ env.PYTHON_VERSION }}
+      
+#       - name: Install dependencies
+#         run: |
+#           pip install -r requirements.txt
+#           pip install locust
+      
+#       - name: Run load tests
+#         run: |
+#           # Add your load testing script here
+#           echo "Running performance tests..."
