@@ -50,7 +50,7 @@ kombu==5.5.4
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 marshmallow==3.26.2
-marshmallow-dataclass==8.5.14
+marshmallow-dataclass>=8.5.8,<8.6.0
 mdurl==0.1.2
 minify_html==0.18.1
 mypy_extensions==1.1.0
@@ -67,7 +67,7 @@ psycopg==3.1.16
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
-pygitguardian==1.27.0
+pygitguardian>=1.27.0
 Pygments==2.19.2
 PyJWT==2.10.1
 pyproject_hooks==1.2.0
@@ -91,10 +91,10 @@ social-auth-core==4.7.0
 soupsieve==2.8
 sqlparse==0.5.4
 truststore==0.10.4
-typeguard==4.4.4
+typeguard>=4.4.4
 types-python-dateutil==2.9.0.20251115
 typing-inspect==0.9.0
-typing_extensions==4.9.0
+typing_extensions>=4.14.0
 tzdata==2025.2
 tzlocal==5.3.1
 urllib3==2.5.0
