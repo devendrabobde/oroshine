@@ -49,8 +49,8 @@ idna==3.11
 kombu==5.5.4
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
-marshmallow==4.1.2
-marshmallow_dataclass==8.7.1
+marshmallow==3.26.2
+marshmallow-dataclass==8.5.14
 mdurl==0.1.2
 minify_html==0.18.1
 mypy_extensions==1.1.0
