@@ -183,11 +183,12 @@ CACHES = {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
         "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "SOCKET_TIMEOUT": 5,
-            "CONNECTION_POOL_KWARGS": {"max_connections": 15, "retry_on_timeout": True},
-            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'CONNECTION_POOL_KWARGS': {'max_connections': 25},
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,
         },
         "KEY_PREFIX": "oroshine",
         "TIMEOUT": 300,
@@ -246,13 +247,24 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # }
 
 # Task routes (keep your existing routes)
-CELERY_TASK_ROUTES = {
-    "oroshine_webapp.tasks.send_appointment_email_task": {"queue": "email"},
-    "oroshine_webapp.tasks.send_contact_email_task": {"queue": "email"},
-    "oroshine_webapp.tasks.send_appointment_reminder_task": {"queue": "email"},
-    "oroshine_webapp.tasks.create_calendar_event_task": {"queue": "calendar"},
-    # "oroshine_webapp.tasks.download_social_avatar_task": {"queue": "cpu"},
-}
+# CELERY_TASK_ROUTES = {
+#     "oroshine_webapp.tasks.send_appointment_email_task": {"queue": "email"},
+#     "oroshine_webapp.tasks.send_contact_email_task": {"queue": "email"},
+#     "oroshine_webapp.tasks.send_appointment_reminder_task": {"queue": "email"},
+#     "oroshine_webapp.tasks.create_calendar_event_task": {"queue": "calendar"},
+#     # "oroshine_webapp.tasks.download_social_avatar_task": {"queue": "cpu"},
+# }
+
+CELERY_TASK_ROUTES = {}
+
+
+
+CELERY_TASK_QUEUES = (
+    Queue('default', Exchange('default'), routing_key='default'),
+    Queue('email', Exchange('email'), routing_key='email'),
+    Queue('calendar', Exchange('calendar'), routing_key='calendar'),
+)
+
 
 # Rate limits
 CELERY_TASK_ANNOTATIONS = {
