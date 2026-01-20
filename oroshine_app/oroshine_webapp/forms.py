@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import UserProfile,Appointment,DOCTOR_CHOICES,TIME_SLOTS
+from .models import UserProfile,Appointment,TIME_SLOTS,Doctor
 from .services_cache import get_service_tuples
 
 
@@ -70,20 +70,20 @@ class UserProfileForm(forms.ModelForm):
         return profile
 
 
-
-
-
-class AppointmentForm(forms.Form):
-    service = forms.ChoiceField()
-    doctor_email = forms.ChoiceField(choices=DOCTOR_CHOICES)
-    name = forms.CharField(max_length=100)
-    email = forms.EmailField()
-    phone = forms.CharField(required=False)
-    date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
-    time = forms.ChoiceField(choices=TIME_SLOTS)
-    message = forms.CharField(required=False, widget=forms.Textarea)
+class AppointmentForm(forms.ModelForm):
+    class Meta:
+        model = Appointment
+        fields = [
+            'service',
+            'doctor',
+            'name',
+            'email',
+            'phone',
+            'date',
+            'time',
+            'message'
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # tuple cache → ultra fast
-        self.fields['service'].choices = get_service_tuples()
+        self.fields['doctor'].queryset = Doctor.cached_active_doctors()

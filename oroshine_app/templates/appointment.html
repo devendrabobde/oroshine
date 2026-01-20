@@ -5,226 +5,274 @@
 {% include "head_template.html" %}
 
 <body>
-{% include "header.html" %}
+    {% include "header.html" %}
 
-<div class="container-fluid bg-primary py-5 hero-header mb-5">
-    <div class="row py-3">
-        <div class="col-12 text-center">
-            <h1 class="display-3 text-white">Appointment</h1>
-            <a href="{% url 'home' %}" class="h4 text-white">Home</a>
-            <i class="far fa-circle text-white px-2"></i>
-            <span class="h4 text-white">Appointment</span>
+    <div class="container-fluid bg-primary py-5 hero-header mb-5">
+        <div class="row py-3">
+            <div class="col-12 text-center">
+                <h1 class="display-3 text-white">Appointment</h1>
+                <a href="{% url 'home' %}" class="h4 text-white">Home</a>
+                <i class="far fa-circle text-white px-2"></i>
+                <span class="h4 text-white">Appointment</span>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="container-fluid bg-primary bg-appointment mb-5" style="margin-top:90px;">
-    <div class="container">
-        <div class="row gx-5">
-            <div class="col-lg-6 py-5 text-white">
-                <h1 class="display-5 mb-4">
-                    Trusted Dental Care, Fast Booking
-                </h1>
-                <p>
-                    Select doctor and date to view live availability.
-                    Confirmation, email, and calendar updates happen in background.
-                </p>
-            </div>
+    <div class="container-fluid bg-primary bg-appointment mb-5" style="margin-top:90px;">
+        <div class="container">
+            <div class="row gx-5">
+                <div class="col-lg-6 py-5 text-white">
+                    <h1 class="display-5 mb-4">
+                        Trusted Dental Care, Fast Booking
+                    </h1>
+                    <p>
+                        Select doctor and date to view live availability.
+                        Confirmation, email, and calendar updates happen in background.
+                    </p>
+                </div>
 
-            <div class="col-lg-6">
-                <div class="appointment-form p-5 text-center bg-white rounded shadow">
+                <div class="col-lg-6">
+                    <div class="appointment-form p-5 text-center bg-white rounded shadow">
 
-                    <h2 class="mb-4">Make Appointment</h2>
+                        <h2 class="mb-4">Make Appointment</h2>
 
-                    <div id="alert-container"></div>
+                        <div id="alert-container"></div>
 
-                    <form id="booking-form" method="post" action="{% url 'appointment' %}">
-                        {% csrf_token %}
+                        <form id="booking-form" method="post" action="{% url 'appointment' %}">
+                            {% csrf_token %}
 
-                        <div class="row g-3">
+                            <div class="row g-3">
 
-                            <!-- Service -->
-                            <div class="col-12 col-sm-6">
-                                <select name="service" class="form-select" required>
-                                    <option value="" disabled selected>Select Service</option>
-                                    {% for code, name in form.fields.service.choices %}
+                                <!-- Service -->
+                                <div class="col-12 col-sm-6">
+                                    <select name="service" class="form-select" required>
+                                        <option value="" disabled selected>Select Service</option>
+                                        {% for code, name in form.fields.service.choices %}
                                         <option value="{{ code }}">{{ name }}</option>
-                                    {% endfor %}
-                                </select>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <!-- Doctor -->
+                                <div class="col-12 col-sm-6">
+                                    <select name="doctor" id="doctor-select" class="form-select" required>
+                                        <option value="" disabled selected>Select Doctor</option>
+                                        {% for d in form.fields.doctor.queryset %}
+                                        <option value="{{ d.id}}">{{ d }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <!-- Name -->
+                                <div class="col-12 col-sm-6">
+                                    <input type="text" name="name" class="form-control"
+                                        value="{{ request.user.first_name }} {{ request.user.last_name }}"
+                                        placeholder="Your Name" required>
+                                </div>
+
+                                <!-- Email -->
+                                <div class="col-12 col-sm-6">
+                                    <input type="email" name="email" class="form-control"
+                                        value="{{ request.user.email }}" placeholder="Your Email" required>
+                                </div>
+
+                                <div class="col-12 col-sm-6">
+                                    <input type="text" name="phone" class="form-control" placeholder="Phone Number"
+                                        required>
+                                </div>
+
+
+                                <!-- Date -->
+                                <div class="col-12 col-sm-6">
+                                    <input type="date" name="date" id="date-select" class="form-control"
+                                        min="{% now 'Y-m-d' %}" required>
+                                </div>
+
+                                <!-- Time -->
+                                <div class="col-12 col-sm-6">
+                                    <select name="time" id="time-select" class="form-select" required disabled>
+                                        <option>Select date and doctor first</option>
+                                    </select>
+                                </div>
+
+                                <!-- Message -->
+                                <div class="col-12">
+                                    <textarea name="message" class="form-control" rows="3"
+                                        placeholder="Optional message"></textarea>
+                                </div>
+
+                                <!-- Submit -->
+                                <div class="col-12">
+                                    <button id="submit-btn" type="submit" class="btn btn-dark w-100 py-3">
+                                        Confirm Appointment
+                                    </button>
+                                </div>
+
                             </div>
+                        </form>
 
-                            <!-- Doctor -->
-                            <div class="col-12 col-sm-6">
-                                <select name="doctor_email" id="doctor-select" class="form-select" required>
-                                    <option value="" disabled selected>Select Doctor</option>
-                                    {% for email, name in doctor_choices %}
-                                        <option value="{{ email }}">{{ name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <!-- Name -->
-                            <div class="col-12 col-sm-6">
-                                <input type="text" name="name" class="form-control"
-                                       value="{{ request.user.first_name }} {{ request.user.last_name }}"
-                                       placeholder="Your Name" required>
-                            </div>
-
-                            <!-- Email -->
-                            <div class="col-12 col-sm-6">
-                                <input type="email" name="email" class="form-control"
-                                       value="{{ request.user.email }}"
-                                       placeholder="Your Email" required>
-                            </div>
-
-                            <!-- Date -->
-                            <div class="col-12 col-sm-6">
-                                <input type="date" name="date" id="date-select"
-                                       class="form-control"
-                                       min="{% now 'Y-m-d' %}" required>
-                            </div>
-
-                            <!-- Time -->
-                            <div class="col-12 col-sm-6">
-                                <select name="time" id="time-select" class="form-select" required disabled>
-                                    <option>Select date and doctor first</option>
-                                </select>
-                            </div>
-
-                            <!-- Message -->
-                            <div class="col-12">
-                                <textarea name="message" class="form-control" rows="3"
-                                          placeholder="Optional message"></textarea>
-                            </div>
-
-                            <!-- Submit -->
-                            <div class="col-12">
-                                <button id="submit-btn" type="submit"
-                                        class="btn btn-dark w-100 py-3">
-                                    Confirm Appointment
-                                </button>
-                            </div>
-
-                        </div>
-                    </form>
-
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-{% include "footer.html" %}
+    {% include "footer.html" %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
+            const doctorSelect = document.getElementById('doctor-select');
+            const dateSelect = document.getElementById('date-select');
+            const timeSelect = document.getElementById('time-select');
+            const form = document.getElementById('booking-form');
+            const alertBox = document.getElementById('alert-container');
+            const submitBtn = document.getElementById('submit-btn');
 
-    const doctorSelect = document.getElementById('doctor-select');
-    const dateSelect   = document.getElementById('date-select');
-    const timeSelect   = document.getElementById('time-select');
-    const form         = document.getElementById('booking-form');
-    const alertBox     = document.getElementById('alert-container');
-    const submitBtn    = document.getElementById('submit-btn');
+            // Initial state
+            submitBtn.disabled = true;
 
-    function showAlert(message, type='success') {
-        alertBox.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show">
-                ${message}
-                <button class="btn-close" data-bs-dismiss="alert"></button>
-            </div>`;
-    }
-
-    /* -----------------------------
-       Fetch Slots (Redis-backed)
-    ------------------------------*/
-    function fetchSlots() {
-        if (!doctorSelect.value || !dateSelect.value) return;
-
-        timeSelect.disabled = true;
-        timeSelect.innerHTML = '<option>Loading...</option>';
-
-        const fd = new FormData();
-        fd.append('doctor_email', doctorSelect.value);
-        fd.append('date', dateSelect.value);
-        fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-        fetch("{% url 'check_slots_ajax' %}", {
-            method: 'POST',
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-            body: fd
-        })
-        .then(res => res.json())
-        .then(data => {
-            timeSelect.innerHTML = '';
-            if (data.status !== 'success') {
-                timeSelect.innerHTML = '<option>Error</option>';
-                return;
+            function showAlert(message, type = 'success') {
+                alertBox.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show">
+            ${message}
+            <button class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
             }
 
-            let available = false;
-            data.slots.forEach(slot => {
-                const opt = document.createElement('option');
-                opt.value = slot.time;
-                opt.textContent = slot.display;
+            /* -----------------------------
+               Fetch Slots 
+            ------------------------------*/
+            function fetchSlots() {
+                if (!doctorSelect.value || !dateSelect.value) return;
 
-                if (!slot.is_available) {
-                    opt.disabled = true;
-                    opt.textContent += ' (Booked)';
-                } else {
-                    available = true;
-                }
-                timeSelect.appendChild(opt);
+                timeSelect.disabled = true;
+                timeSelect.innerHTML = '<option>Loading...</option>';
+
+                const fd = new FormData();
+                fd.append('doctor_id', doctorSelect.value);
+                fd.append('date', dateSelect.value);
+                // fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                fetch("{% url 'check_slots_ajax' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: fd
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        timeSelect.innerHTML = '';
+
+                        if (data.status !== 'success') {
+                            timeSelect.innerHTML = '<option>Error fetching slots</option>';
+                            return;
+                        }
+
+                        let available = false;
+
+                        data.slots.forEach(slot => {
+                            const opt = document.createElement('option');
+                            opt.value = slot.time;
+                            opt.textContent = slot.display;
+
+                            if (!slot.is_available) {
+                                opt.disabled = true;
+                                opt.textContent += ' (Booked)';
+                            } else {
+                                available = true;
+                            }
+
+                            timeSelect.appendChild(opt);
+                        });
+
+                        timeSelect.disabled = !available;
+                    })
+                    .catch(() => {
+                        timeSelect.innerHTML = '<option>Error loading slots</option>';
+                    });
+            }
+
+            // Trigger slot fetch
+            doctorSelect.addEventListener('change', fetchSlots);
+            dateSelect.addEventListener('change', fetchSlots);
+
+            // Enable submit only after slot selection
+            timeSelect.addEventListener('change', () => {
+                submitBtn.disabled = false;
             });
 
-            timeSelect.disabled = !available;
+            /* -----------------------------
+               Optimistic Booking Submit
+            ------------------------------*/
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Booking...';
+
+                showAlert('Appointment request submitted. Processing...', 'success');
+
+                const fd = new FormData(form);
+
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }, body: fd
+                })
+                    .then(res => {
+                        if (res.status === 409) {
+                            showAlert('Slot was just booked by someone else. Please choose another.', 'warning');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Confirm Appointment';
+                            throw new Error('Slot conflict');
+                        }
+                        return res.json();
+                    })
+                    .then(data => {
+                        if (data.status !== 'success') {
+                            showAlert(data.message || 'Booking failed', 'danger');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Confirm Appointment';
+                            return;
+                        }
+
+                        form.reset();
+                        timeSelect.disabled = true;
+                        timeSelect.innerHTML = '<option>Select date and doctor first</option>';
+
+                        if (data.redirect_url) {
+                            setTimeout(() => window.location.href = data.redirect_url, 1200);
+                        }
+                    })
+                    .catch(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Confirm Appointment';
+                    });
+            });
+
         });
-    }
 
-    doctorSelect.addEventListener('change', fetchSlots);
-    dateSelect.addEventListener('change', fetchSlots);
 
-    /* -----------------------------
-       Optimistic Booking Submit
-    ------------------------------*/
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
 
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Booking...';
-
-        // UI FIRST (Optimistic)
-        showAlert('Appointment request submitted. Processing...', 'success');
-
-        const fd = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-            body: fd
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status !== 'success') {
-                showAlert(data.message || 'Booking failed', 'danger');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Confirm Appointment';
-                return;
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                document.cookie.split(';').forEach(cookie => {
+                    const c = cookie.trim();
+                    if (c.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(c.slice(name.length + 1));
+                    }
+                });
             }
+            return cookieValue;
+        }
+    </script>
 
-            form.reset();
-            timeSelect.disabled = true;
-            timeSelect.innerHTML = '<option>Select date and doctor first</option>';
-
-            if (data.redirect_url) {
-                setTimeout(() => window.location.href = data.redirect_url, 1200);
-            }
-        })
-        .catch(() => {
-            showAlert('Network error. Please retry.', 'danger');
-        });
-    });
-});
-</script>
 
 </body>
+
 </html>

@@ -11,7 +11,7 @@ from datetime import timedelta
 
 from oroshine_webapp.models import (
     Appointment, Contact, UserProfile,
-    DOCTOR_CHOICES, TIME_SLOTS
+    Doctor, TIME_SLOTS
 )
 
 

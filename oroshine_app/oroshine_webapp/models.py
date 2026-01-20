@@ -5,23 +5,79 @@ from django.dispatch import receiver
 from django.core.cache import cache
 from PIL import Image
 from django.utils import timezone
-
-# for prometheous
-
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from prometheus_client import Gauge
+
+# ====================================
+# DOCTOR MANAGER & MODEL
+# ====================================
+
+class DoctorManager(models.Manager):
+    def active_doctors(self):
+        """
+        Return a QuerySet of active doctors (NOT a list).
+        ⚠️ FIX: Return QuerySet directly for form compatibility.
+        """
+        return self.filter(is_active=True).order_by('display_order', 'full_name')
+
+    def get_doctor_choices(self):
+        """
+        Return list of tuples (id, name) for ChoiceField.
+        Caches choices for performance.
+        """
+        cache_key = 'doctor_form_choices'
+        choices = cache.get(cache_key)
+
+        if choices is None:
+            doctors = self.active_doctors()
+            choices = [(doc.id, doc.full_name) for doc in doctors]
+            cache.set(cache_key, choices, 3600)
+
+        return choices
+
+class Doctor(models.Model):
+    email = models.EmailField(unique=True, db_index=True)
+    full_name = models.CharField(max_length=150)
+    specialization = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    objects = DoctorManager()
+
+    class Meta:
+        ordering = ['display_order', 'full_name']
+
+    def __str__(self):
+        return f"Dr. {self.full_name}"
+
+    @classmethod
+    def cached_active_doctors(cls):
+        """
+        ⚠️ FIX: Return QuerySet for form compatibility.
+        Cache only the IDs, return fresh QuerySet.
+        """
+        cache_key = "active_doctor_ids"
+        ids = cache.get(cache_key)
+
+        if ids is None:
+            ids = list(
+                cls.objects.filter(is_active=True)
+                .values_list('id', flat=True)
+                .order_by('display_order', 'full_name')
+            )
+            cache.set(cache_key, ids, 3600)
+
+        # Return QuerySet (forms need QuerySet, not list)
+        return cls.objects.filter(id__in=ids).order_by('display_order', 'full_name')
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Invalidate cache when doctors change
+        cache.delete("active_doctor_ids")
+        cache.delete("doctor_form_choices")
 
 # ====================================
 # CHOICES
 # ====================================
-
-DOCTOR_CHOICES = (
-    ('nikhilchandurkar24@gmail.com', 'Dr. Worst Developer'),
-    ('doctor.johnson@example.com', 'Dr. Johnson'),
-    ('doctor.williams@example.com', 'Dr. Williams'),
-    ('doctor.brown@example.com', 'Dr. Brown'),
-)
 
 TIME_SLOTS = (
     # Morning Slots: 09:00 AM – 02:00 PM
@@ -57,15 +113,12 @@ SERVICE_CHOICES = (
     ('emergency', 'Emergency'),
 )
 
-
-
+# Prometheus metrics
 active_appointments = Gauge(
     'active_appointments_by_status',
     'Active appointments by status',
     ['status']
 )
-
-
 
 # ====================================
 # CUSTOM MANAGERS
@@ -78,7 +131,6 @@ class UserProfileManager(models.Manager):
     def active_profiles(self):
         return self.select_related('user').filter(user__is_active=True)
 
-
 class AppointmentManager(models.Manager):
     def upcoming_for_user(self, user_id, limit=5):
         return (
@@ -87,15 +139,16 @@ class AppointmentManager(models.Manager):
                 status__in=['pending', 'confirmed'],
                 date__gte=timezone.now().date()
             )
-            .only('id', 'date', 'time', 'service', 'doctor_email', 'status')
+            .select_related('doctor')
+            .only('id', 'date', 'time', 'service', 'status', 'doctor__full_name')
             .order_by('date', 'time')[:limit]
         )
     
-    def booked_slots(self, date, doctor_email):
+    def booked_slots(self, date, doctor_id):
         return set(
             self.filter(
                 date=date,
-                doctor_email=doctor_email,
+                doctor_id=doctor_id,
                 status__in=['pending', 'confirmed']
             ).values_list('time', flat=True)
         )
@@ -109,7 +162,6 @@ class AppointmentManager(models.Manager):
             completed=Count('id', filter=Q(status='completed')),
             cancelled=Count('id', filter=Q(status='cancelled'))
         )
-
 
 class ContactManager(models.Manager):
     def recent_for_user(self, user_id, limit=5):
@@ -131,7 +183,7 @@ class UserProfile(models.Model):
     city = models.CharField(max_length=100, blank=True, db_index=True)
     state = models.CharField(max_length=100, blank=True)
     zip_code = models.CharField(max_length=10, blank=True)
-    avatar = models.ImageField(upload_to='avatars/', default='avatars/default.png', blank=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     emergency_contact_name = models.CharField(max_length=100, blank=True)
     emergency_contact_phone = models.CharField(max_length=15, blank=True)
     medical_history = models.TextField(max_length=1000, blank=True)
@@ -166,7 +218,6 @@ class UserProfile(models.Model):
             except Exception:
                 pass
 
-
 class Contact(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='contacts')
     name = models.CharField(max_length=250, db_index=True)
@@ -188,7 +239,6 @@ class Contact(models.Model):
 
     def __str__(self):
         return f"{self.subject} - {self.created_at.date()}"
-
 
 class Service(models.Model):
     name = models.CharField(max_length=100, unique=True, db_index=True)
@@ -219,15 +269,14 @@ class Service(models.Model):
                 .only('id', 'name', 'code', 'price')
                 .order_by('name')
             )
-            cache.set(cache_key, services, 86400) # 24 hours
+            cache.set(cache_key, services, 86400)
         
         return services
-
 
 class Appointment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments', db_index=True)
     service = models.CharField(max_length=100, choices=SERVICE_CHOICES, db_index=True)
-    doctor_email = models.EmailField(db_index=True)
+    doctor = models.ForeignKey(Doctor, on_delete=models.PROTECT, related_name='appointments')
     name = models.CharField(max_length=100)
     email = models.EmailField()
     phone = models.CharField(max_length=15)
@@ -245,40 +294,37 @@ class Appointment(models.Model):
 
     class Meta:
         ordering = ['-date', '-time']
-        # indexes = [
-        #     models.Index(fields=['user', 'status', 'date']),
-        #     models.Index(fields=['date', 'time', 'doctor_email']),
-        #     models.Index(fields=['doctor_email', 'date', 'status']),
-        # ]
+        unique_together = [['doctor', 'date', 'time']]
         indexes = [
-            # For slot availability checks
             models.Index(
-                fields=['doctor_email', 'date', 'status'],
+                fields=['doctor', 'date', 'time', 'status'],
                 name='idx_slot_lookup'
             ),
-            # For user appointments
             models.Index(
                 fields=['user', '-date'],
-                name='idx_user_appointments'
+                name='idx_user_recent'
             ),
-            # For reminder tasks
             models.Index(
                 fields=['date', 'status'],
                 name='idx_reminder_scan'
             ),
+            models.Index(
+                fields=['doctor', 'date'],
+                name='idx_doctor_day'
+            ),
         ]
-        unique_together = [['date', 'time', 'doctor_email']]
-        
+
     def __str__(self):
-        return f"Appt#{self.id} - {self.date} {self.time}"
+        doctor_name = f"Dr. {self.doctor.full_name}" if self.doctor else "No Doctor"
+        return f"Appt#{self.id} - {doctor_name} - {self.date} {self.time}"
     
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         # Invalidate relevant caches
-        cache.delete(f'slots:{self.date}:{self.doctor_email}')
+        if self.doctor_id:
+            cache.delete(f"slots:{self.doctor_id}:{self.date}")
         cache.delete(f'sidebar_appt:{self.user_id}')
         cache.delete(f'user_appointment_stats:{self.user_id}')
-
 
 class Newsletter(models.Model):
     email = models.EmailField(unique=True, db_index=True)
@@ -295,16 +341,12 @@ class Newsletter(models.Model):
     def __str__(self):
         return self.email
 
-
-
 @receiver(post_save, sender=Appointment)
 def update_appointment_metrics(sender, instance, **kwargs):
     """Update appointment metrics on save"""
     from django.db.models import Count
     
-    # Count appointments by status
     stats = Appointment.objects.values('status').annotate(count=Count('id'))
     
     for stat in stats:
         active_appointments.labels(status=stat['status']).set(stat['count'])
-

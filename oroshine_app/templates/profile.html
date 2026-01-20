@@ -25,8 +25,14 @@
                 <div class="row g-4">
                     <!-- Avatar -->
                     <div class="col-md-3 text-center">
-                        <img src="{{ profile.avatar.url }}" class="rounded-circle shadow-sm"
-                             style="width: 150px; height:150px; object-fit: cover;" alt="Avatar">
+                        {% if user.profile.avatar %}
+                        <img src="{{ user.profile.avatar.url }}" class="avatar">
+                        {% else %}
+                        <div class="avatar-fallback">
+                            {{ user.first_name|default:user.username|first|upper }}
+                        </div>
+                        {% endif %}
+
                     </div>
 
                     <!-- User Info -->
@@ -201,4 +207,5 @@
     </div>
 
 </body>
+
 </html>

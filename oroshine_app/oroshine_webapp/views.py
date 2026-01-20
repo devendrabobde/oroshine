@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.core.validators import validate_email, ValidationError
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -22,30 +22,24 @@ import json
 import random
 from django.conf import settings
 from django.http import HttpResponse
-
+import uuid
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
-
 from .models import (
     Contact, Appointment, UserProfile,
-    DOCTOR_CHOICES, TIME_SLOTS, STATUS_CHOICES,SERVICE_CHOICES
+    Doctor, TIME_SLOTS, STATUS_CHOICES, SERVICE_CHOICES
 )
-from .forms import NewUserForm, UserProfileForm,AppointmentForm
+from .forms import NewUserForm, UserProfileForm, AppointmentForm
 
 from .tasks import (
+    create_calendar_event_task,
     send_appointment_email_task,
-    create_calendar_event_task
 )
-
-
 
 logger = logging.getLogger(__name__)
 
-
-
-
-
+LOCK_TTL = 30  # seconds
 
 def prometheus_metrics(request):
     """Expose Prometheus metrics"""
@@ -54,12 +48,6 @@ def prometheus_metrics(request):
 # ==========================================
 # RATE LIMITING DECORATOR
 # ==========================================
-
-
-
-
-
-
 
 def rate_limit(key_prefix, limit=5, window=900):
     def decorator(view_func):
@@ -82,7 +70,7 @@ def rate_limit(key_prefix, limit=5, window=900):
             
             response = view_func(request, *args, **kwargs)
             
-            # Only increment on failure (checks both JSON and Status Codes)
+            # Only increment on failure
             is_failure = False
             if isinstance(response, JsonResponse):
                 try:
@@ -94,13 +82,10 @@ def rate_limit(key_prefix, limit=5, window=900):
 
             if is_failure:
                 cache.set(cache_key, attempts + 1, window)
-            # Optional: Reset on success to be user-friendly
-            # else: cache.delete(cache_key) 
             
             return response
         return wrapper
     return decorator
-
 
 # ==========================================
 # HELPERS
@@ -136,7 +121,6 @@ def generate_username_suggestion(base_username):
         if not User.objects.filter(username__iexact=suggestion).exists():
             return suggestion
     return f"{base}{random.randint(100, 9999)}"
-
 
 # ==========================================
 # AUTH VIEWS
@@ -186,7 +170,6 @@ def check_availability(request):
     cache.set(cache_key, response_data, 300)
     return JsonResponse(response_data)
 
-
 @rate_limit('register', limit=5, window=3600)
 def register_request(request):
     if request.user.is_authenticated:
@@ -214,7 +197,6 @@ def register_request(request):
         form = NewUserForm()
     
     return render(request, "register.html", {"register_form": form})
-
 
 @rate_limit('login', limit=5, window=900)
 def login_request(request):
@@ -250,7 +232,6 @@ def login_request(request):
 
     return render(request, "login.html", {"login_form": form})
 
-
 def logout_request(request):
     user_id = request.user.id if request.user.is_authenticated else None
     logout(request)
@@ -258,7 +239,6 @@ def logout_request(request):
         invalidate_user_cache(user_id)
     messages.success(request, "Logged out successfully.")
     return redirect("/")
-
 
 # ==========================================
 # PUBLIC PAGES (CACHED)
@@ -270,7 +250,7 @@ def homepage(request):
         stats = {
             'total_appointments': Appointment.objects.filter(status='completed').count(),
             'active_users': UserProfile.objects.filter(user__is_active=True).count(),
-            'satisfaction_rate': 98
+            'satisfaction_rate': 88
         }
         cache.set('homepage_stats', stats, 1800)
     return render(request, 'index.html', {'stats': stats})
@@ -290,310 +270,159 @@ def team(request): return render(request, "team.html")
 @cache_page(3600)
 def testimonial(request): return render(request, 'testimonial.html')
 
-
-# ==========================================
-# APPOINTMENT LOGIC + ajax slot check 
-# ==========================================
-
-# @require_http_methods(["POST"])
-# @login_required
-# def check_slots_ajax(request):
-#     doctor = request.POST.get('doctor_email')
-#     date = request.POST.get('date')
-
-#     if not doctor or not date:
-#         return JsonResponse({'status': 'error'}, status=400)
-
-#     cache_key = f"slots:{doctor}:{date}"
-#     booked = cache.get(cache_key)
-
-#     if booked is None:
-#         booked = set(
-#             Appointment.objects.filter(
-#                 doctor_email=doctor,
-#                 date=date,
-#                 status__in=['pending', 'confirmed']
-#             ).values_list('time', flat=True)
-#         )
-#         cache.set(cache_key, booked, 300)
-
-#     slots = [
-#         {
-#             "time": t,
-#             "display": d,
-#             "is_available": t not in booked
-#         }
-#         for t, d in TIME_SLOTS
-#     ]
-
-#     return JsonResponse({'status': 'success', 'slots': slots})
-
-
-# @login_required(login_url='/login/')
-# def appointment(request):
-#     if request.method == "POST" and request.headers.get("X-Requested-With") == "XMLHttpRequest":
-#         form = AppointmentForm(request.POST)
-#         if not form.is_valid():
-#             return JsonResponse({'status': 'error', 'message': 'Invalid data'}, status=400)
-
-#         data = form.cleaned_data
-
-#         try:
-#             with transaction.atomic():
-#                 exists = Appointment.objects.select_for_update().filter(
-#                     date=data['date'],
-#                     time=data['time'],
-#                     doctor_email=data['doctor_email'],
-#                     status__in=['pending', 'confirmed']
-#                 ).exists()
-
-#                 if exists:
-#                     return JsonResponse(
-#                         {'status': 'error', 'message': 'Slot already booked'},
-#                         status=409
-#                     )
-
-#                 appt = Appointment.objects.create(
-#                     user=request.user,
-#                     **data,
-#                     status='pending'
-#                 )
-
-#                 # invalidate slot cache
-#                 cache.delete(f"slots:{data['doctor_email']}:{data['date']}")
-
-#                 transaction.on_commit(lambda: send_appointment_email_task.delay(appt.id))
-#                 transaction.on_commit(lambda: create_calendar_event_task.delay(appt.id))
-
-#             return JsonResponse({
-#                 'status': 'success',
-#                 'message': 'Appointment booked successfully!',
-#                 'redirect_url': '/appointment/'
-#             })
-
-#         except Exception:
-#             return JsonResponse({'status': 'error', 'message': 'Server error'}, status=500)
-
-#     # -------------------------------
-#     # GET PAGE (NO DB HIT)
-#     # -------------------------------
-#     form = AppointmentForm()
-#     return render(request, 'appointment.html', {
-#         'form': form,
-#         'doctor_choices': DOCTOR_CHOICES,
-#     })
-
-
-
-# v2 
-
-
-
-
-
-
-
-
-
 # ==========================================
 # AJAX SLOT AVAILABILITY CHECK
 # ==========================================
+
 @require_http_methods(["POST"])
 @login_required
 def check_slots_ajax(request):
-    """
-    Check available appointment slots for a doctor on a specific date
-    Returns: JSON with slot availability
-    """
-    doctor = request.POST.get('doctor_email', '').strip()
-    date = request.POST.get('date', '').strip()
+    doctor_id = request.POST.get('doctor_id')
+    date = request.POST.get('date')
 
-    # Validation
-    if not doctor or not date:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Doctor and date are required'
-        }, status=400)
+    if not doctor_id or not date:
+        return JsonResponse({'status': 'error'}, status=400)
 
-    try:
-        # Generate cache key
-        cache_key = f"slots:{doctor}:{date}"
-        
-        # Try to get from cache
-        booked = cache.get(cache_key)
+    cache_key = f"slots:{doctor_id}:{date}"
 
-        if booked is None:
-            # Query database for booked slots
-            booked = set(
-                Appointment.objects.filter(
-                    doctor_email=doctor,
-                    date=date,
-                    status__in=['pending', 'confirmed']
-                ).values_list('time', flat=True)
-            )
-            
-            # Cache for 5 minutes
-            cache.set(cache_key, booked, 300)
-            logger.debug(f"Cache miss for slots: {cache_key}")
-        else:
-            logger.debug(f"Cache hit for slots: {cache_key}")
+    booked = cache.get(cache_key)
+    if booked is None:
+        booked = set(
+            Appointment.objects.filter(
+                doctor_id=doctor_id,
+                date=date,
+                status__in=['pending', 'confirmed']
+            ).values_list('time', flat=True)
+        )
+        cache.set(cache_key, booked, 300)
 
-        # Build slot list with availability
-        slots = [
-            {
-                "time": str(time_obj),
-                "display": display,
-                "is_available": time_obj not in booked
-            }
-            for time_obj, display in TIME_SLOTS
-        ]
+    slots = [
+        {
+            "time": t,
+            "display": d,
+            "is_available": t not in booked
+        }
+        for t, d in TIME_SLOTS
+    ]
 
-        return JsonResponse({
-            'status': 'success',
-            'slots': slots,
-            'doctor': doctor,
-            'date': date
-        })
-
-    except Exception as e:
-        logger.exception(f"Error checking slots for {doctor} on {date}")
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Failed to check slot availability'
-        }, status=500)
-
+    return JsonResponse({'status': 'success', 'slots': slots})
 
 # ==========================================
 # APPOINTMENT BOOKING VIEW
 # ==========================================
+
 @login_required(login_url='/custom-login/')
 def appointment(request):
-    """
-    Handle appointment booking (GET: show form, POST: process booking)
-    """
-    
-    # -------------------------------
     # AJAX POST: Book Appointment
-    # -------------------------------
     if request.method == "POST" and request.headers.get("X-Requested-With") == "XMLHttpRequest":
         form = AppointmentForm(request.POST)
         
         if not form.is_valid():
-            errors = form.errors.as_json()
-            logger.warning(f"Invalid appointment form: {errors}")
+            logger.error(f"Form validation failed: {form.errors}")
             return JsonResponse({
                 'status': 'error',
-                'message': 'Please check your input and try again',
+                'message': 'Invalid input',
                 'errors': form.errors
             }, status=400)
 
         data = form.cleaned_data
+        doctor = data['doctor']
+        date = data['date']
+        time = data['time']
+
+        logger.info(f"Booking attempt - Doctor: {doctor}, Date: {date}, Time: {time}")
+
+        # Redis distributed lock
+        lock_key = f"lock:slot:{doctor.id}:{date}:{time}"
+        lock_value = str(uuid.uuid4())
+
+        if not cache.add(lock_key, lock_value, LOCK_TTL):
+            logger.warning(f"Lock failed for slot {doctor.id}:{date}:{time}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Slot just booked by someone else. Please select another.'
+            }, status=409)
 
         try:
             with transaction.atomic():
-                # Lock the row to prevent race conditions
-                exists = Appointment.objects.select_for_update().filter(
-                    date=data['date'],
-                    time=data['time'],
-                    doctor_email=data['doctor_email'],
+                # DB-level lock
+                conflict = Appointment.objects.select_for_update().filter(
+                    doctor=doctor,
+                    date=date,
+                    time=time,
                     status__in=['pending', 'confirmed']
                 ).exists()
 
-                if exists:
-                    logger.info(
-                        f"Slot conflict for user {request.user.id}: "
-                        f"{data['doctor_email']} at {data['date']} {data['time']}"
-                    )
-                    print(request.user.id )
+                if conflict:
+                    logger.warning(f"Conflict detected for slot {doctor.id}:{date}:{time}")
                     return JsonResponse({
                         'status': 'error',
-                        'message': 'This time slot has already been booked. Please choose another.'
+                        'message': 'This time slot is no longer available.'
                     }, status=409)
 
                 # Create appointment
                 appt = Appointment.objects.create(
                     user=request.user,
+                    doctor=doctor,
+                    date=date,
+                    time=time,
+                    service=data['service'],
                     name=data['name'],
                     email=data['email'],
                     phone=data.get('phone', ''),
-                    date=data['date'],
-                    time=data['time'],
-                    doctor_email=data['doctor_email'],
-                    service=data['service'],
                     message=data.get('message', ''),
                     status='pending'
                 )
 
-                logger.info(f"Appointment created: ID={appt.id}, User={request.user.id}")
-                print(appt.id)
-                print(appt)
+                logger.info(f"✓ Appointment created: ID={appt.id}")
 
-                # Invalidate slot cache immediately
-                cache_key = f"slots:{data['doctor_email']}:{data['date']}"
-                cache.delete(cache_key)
-                logger.debug(f"Invalidated cache: {cache_key}")
+                # Invalidate slot cache
+                cache.delete(f"slots:{doctor.id}:{date}")
 
-                # Queue async tasks AFTER transaction commits
-                def queue_tasks():
-                    try:
-                        # Send confirmation email
-                        email_result = send_appointment_email_task.apply_async(
-                            args=[appt.id],
-                            countdown=2,  # Small delay to ensure DB commit
-                            retry=True
-                        )
-                        logger.info(f"Email task queued: {email_result.id}")
-                        
-                        # Create calendar event
-                        calendar_result = create_calendar_event_task.apply_async(
-                            args=[appt.id],
-                            countdown=2,  # Slightly longer delay
-                            retry=True
-                        )
-                        logger.info(f"Calendar task queued: {calendar_result.id}")
-                        print(calendar_result)
-                        print(email_result)
-                    except Exception as e:
-                        logger.exception(f"Error queuing tasks for appointment {appt.id}")
+                # ⚠️ FIX: Queue tasks ONLY with .delay()
+                transaction.on_commit(
+                    lambda: send_appointment_email_task.delay(appt.id)
+                )
 
-                transaction.on_commit(queue_tasks)
+                transaction.on_commit(
+                    lambda: create_calendar_event_task.delay(appt.id)
+                )
+
+                logger.info(f"✓ Tasks queued for appointment {appt.id}")
 
             return JsonResponse({
                 'status': 'success',
-                'message': 'Appointment booked successfully! Confirmation email will be sent shortly.',
                 'appointment_id': appt.id,
-                'redirect_url': '/appointment'  # Redirect to user's appointments
+                'redirect_url': '/appointment'
             })
 
         except Exception as e:
-            logger.exception(f"Error booking appointment for user {request.user.id}")
+            logger.exception(f"Error booking appointment: {e}")
             return JsonResponse({
                 'status': 'error',
-                'message': 'An error occurred while booking your appointment. Please try again.'
+                'message': 'Failed to book appointment. Please try again.'
             }, status=500)
+        
+        finally:
+            # Safe lock release
+            if cache.get(lock_key) == lock_value:
+                cache.delete(lock_key)
 
-    # -------------------------------
     # GET: Display Appointment Form
-    # -------------------------------
     form = AppointmentForm(initial={
         'name': request.user.get_full_name(),
         'email': request.user.email
     })
-    
-    context = {
+
+    return render(request, 'appointment.html', {
         'form': form,
-        'doctor_choices': DOCTOR_CHOICES,
         'time_slots': TIME_SLOTS,
-    }
-    
-    return render(request, 'appointment.html', context)
-
-
-
+    })
 
 # ==========================================
-# OPTIONAL: Cancel Appointment
+# CANCEL APPOINTMENT
 # ==========================================
+
 @require_http_methods(["POST"])
 @login_required
 def cancel_appointment(request, appointment_id):
@@ -611,7 +440,7 @@ def cancel_appointment(request, appointment_id):
         appt.save(update_fields=['status', 'updated_at'])
         
         # Invalidate cache
-        cache_key = f"slots:{appt.doctor_email}:{appt.date}"
+        cache_key = f"slots:{appt.doctor_id}:{appt.date}"
         cache.delete(cache_key)
         
         logger.info(f"Appointment {appointment_id} cancelled by user {request.user.id}")
@@ -632,14 +461,6 @@ def cancel_appointment(request, appointment_id):
             'status': 'error',
             'message': 'Failed to cancel appointment'
         }, status=500)
-
-
-
-
-
-
-
-
 
 # ==========================================
 # PROFILE & CONTACT
@@ -666,7 +487,6 @@ def contact(request):
             
     return render(request, 'contact.html')
 
-
 @login_required
 def user_profile(request):
     user = request.user
@@ -683,7 +503,7 @@ def user_profile(request):
         form = UserProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
-            invalidate_user_cache(user.id) # Helper function
+            invalidate_user_cache(user.id)
             messages.success(request, "Profile updated!")
             return redirect('user_profile')
     else:
@@ -696,13 +516,16 @@ def user_profile(request):
         cache.set(stats_key, stats, 600)
 
     # Lists
-    appointments = Appointment.objects.filter(user=user).select_related('user').order_by('-date')
+    appointments = Appointment.objects.filter(user=user).select_related('doctor', 'user').order_by('-date')
     paginator = Paginator(appointments, 10)
     page_obj = paginator.get_page(request.GET.get("page"))
     contacts = Contact.objects.recent_for_user(user.id)
 
     context = {
-        "form": form, "profile": profile, "appointments": page_obj, "contacts": contacts,
+        "form": form,
+        "profile": profile,
+        "appointments": page_obj,
+        "contacts": contacts,
         "total_appointments": stats.get('total', 0),
         "pending_appointments": stats.get('pending', 0),
         "completed_appointments": stats.get('completed', 0),

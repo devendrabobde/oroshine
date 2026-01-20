@@ -245,7 +245,7 @@ def invalidate_appointment_cache(sender, instance, **kwargs):
     cache.delete(f'user_appointment_stats:{instance.user.id}')
     
     # Clear availability cache for that date/doctor
-    cache_key = f'available_slots:{instance.date.strftime("%Y-%m-%d")}:{instance.doctor_email}'
+    cache_key = f'available_slots:{instance.date.strftime("%Y-%m-%d")}:{instance.doctor_id}'
     cache.delete(cache_key)
     
     # Clear homepage stats

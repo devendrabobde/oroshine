@@ -81,7 +81,7 @@ jobs:
           cp nginx/nginx.conf ${{ env.DEPLOY_PATH }}/nginx/
           cp nginx/robots.txt ${{ env.DEPLOY_PATH }}/nginx/ 2>/dev/null || true
           cp -r monitoring/* ${{ env.DEPLOY_PATH }}/monitoring/ 2>/dev/null || true
-          [ -f media/avatars/default.png ] && cp media/avatars/default.png ${{ env.DEPLOY_PATH }}/media/avatars/ || true
+          [ -f media/default.png ] && cp media/default.png ${{ env.DEPLOY_PATH }}/media/ || true
 
       - name: Create .env file with secrets
         run: |

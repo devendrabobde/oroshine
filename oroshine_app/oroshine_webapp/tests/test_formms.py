@@ -205,7 +205,7 @@ class AppointmentFormTest(TestCase):
             'phone': '9876543210',
             'date': tomorrow.isoformat(),
             'time': TIME_SLOTS[0][0],
-            'doctor_email': DOCTOR_CHOICES[0][0],
+            'doctor': DOCTOR_CHOICES[0][0],
             'service': 'Consultation',
             'message': 'First visit',
         })

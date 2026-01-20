@@ -346,7 +346,7 @@ class AppointmentViewsTest(TransactionTestCase):
         """Test booking already taken slot"""
         tomorrow = (timezone.now() + timedelta(days=1)).date()
         time_slot = TIME_SLOTS[0][0]
-        doctor = DOCTOR_CHOICES[0][0]
+        doctor = Doctor[0][0]
         
         # Create existing appointment
         Appointment.objects.create(
