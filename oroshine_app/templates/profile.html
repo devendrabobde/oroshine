@@ -7,11 +7,92 @@
 {% include "head_template.html" %}
 
 <body>
-
     {% include "header.html" %}
 
-    <div class="container py-5">
+    <!-- Custom Avatar Styles -->
+    <style>
+        .avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #0d6efd;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
 
+        .avatar-fallback {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: white;
+            border: 4px solid #0d6efd;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+
+        .avatar-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .avatar-status {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 25px;
+            height: 25px;
+            background-color: #28a745;
+            border: 3px solid white;
+            border-radius: 50%;
+        }
+
+        .avatar-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #0d6efd;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .avatar-fallback-small {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: white;
+            border: 3px solid #0d6efd;
+            margin: 0 auto;
+        }
+
+        .card-header {
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .list-unstyled li {
+            padding: 8px 0;
+        }
+
+        .alert-success {
+            background-color: #d1f2eb;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+    </style>
+
+    <div class="container py-5">
         <!-- PAGE TITLE -->
         <div class="text-center mb-4">
             <h2 class="fw-bold text-primary">My Profile</h2>
@@ -21,39 +102,79 @@
         <!-- PROFILE CARD -->
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-
                 <div class="row g-4">
                     <!-- Avatar -->
                     <div class="col-md-3 text-center">
-                        {% if user.profile.avatar %}
-                        <img src="{{ user.profile.avatar.url }}" class="avatar">
-                        {% else %}
-                        <div class="avatar-fallback">
-                            {{ user.first_name|default:user.username|first|upper }}
-                        </div>
-                        {% endif %}
+                        <div class="avatar-container">
+                            {% if profile.avatar %}
+                            <!-- User has uploaded avatar -->
+                            <img src="{{ profile.avatar.url }}" alt="{{ user.get_full_name|default:user.username }}"
+                                class="avatar"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
 
+                            <!-- Fallback if image fails to load -->
+                            <div class="avatar-fallback" style="display: none;">
+                                {{ profile.get_initials }}
+                            </div>
+                            {% else %}
+                            <!-- No avatar: Show initials -->
+                            <div class="avatar-fallback">
+                                {% if user.first_name and user.last_name %}
+                                {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                                {% elif user.first_name %}
+                                {{ user.first_name|first|upper }}
+                                {% else %}
+                                {{ user.username|first|upper }}
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Active status indicator -->
+                            <span class="avatar-status" title="Active"></span>
+                        </div>
+
+                        <!-- Change Avatar Button -->
+                        <div class="mt-3">
+                            <a href="#updateModal" data-bs-toggle="modal" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-camera"></i> Change Photo
+                            </a>
+                        </div>
                     </div>
 
                     <!-- User Info -->
                     <div class="col-md-9">
-                        <h4 class="fw-bold mb-1">{{ request.user.first_name }} {{ request.user.last_name }}</h4>
-                        <p class="text-muted mb-2">{{ request.user.email }}</p>
+                        <h4 class="fw-bold mb-1">
+                            {% if user.first_name or user.last_name %}
+                            {{ user.first_name }} {{ user.last_name }}
+                            {% else %}
+                            {{ user.username }}
+                            {% endif %}
+                        </h4>
+                        <p class="text-muted mb-2">
+                            <i class="bi bi-envelope"></i> {{ user.email }}
+                        </p>
 
-                        <div class="row">
+                        <div class="row mt-3">
                             <div class="col-md-6">
-                                <p><strong>Phone:</strong> {{ profile.phone|default:"Not added" }}</p>
-                                <p><strong>Date of Birth:</strong> {{ profile.date_of_birth|default:"Not added" }}</p>
-                                <p><strong>City:</strong> {{ profile.city|default:"Not added" }}</p>
+                                <p><i class="bi bi-telephone"></i> <strong>Phone:</strong> {{ profile.phone|default:"Not
+                                    added" }}</p>
+                                <p><i class="bi bi-calendar"></i> <strong>Date of Birth:</strong> {{
+                                    profile.date_of_birth|date:"M d, Y"|default:"Not added" }}</p>
+                                <p><i class="bi bi-geo-alt"></i> <strong>City:</strong> {{ profile.city|default:"Not
+                                    added" }}</p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>State:</strong> {{ profile.state|default:"Not added" }}</p>
-                                <p><strong>Zip Code:</strong> {{ profile.zip_code|default:"Not added" }}</p>
+                                <p><i class="bi bi-map"></i> <strong>State:</strong> {{ profile.state|default:"Not
+                                    added" }}</p>
+                                <p><i class="bi bi-mailbox"></i> <strong>Zip Code:</strong> {{
+                                    profile.zip_code|default:"Not added" }}</p>
+                                <p><i class="bi bi-clock"></i> <strong>Member Since:</strong> {{
+                                    profile.created_at|date:"M Y" }}</p>
                             </div>
                         </div>
 
                         <a href="#updateModal" data-bs-toggle="modal" class="btn btn-primary mt-3">
-                            Update Profile
+                            <i class="bi bi-pencil"></i> Update Profile
                         </a>
                     </div>
                 </div>
@@ -63,28 +184,28 @@
         <!-- APPOINTMENT STATS -->
         <div class="row mb-4">
             <div class="col-md-4">
-                <div class="card text-center shadow-sm border-0">
+                <div class="card text-center shadow-sm border-0 bg-primary bg-gradient text-white">
                     <div class="card-body">
-                        <h5 class="text-primary">Total Appointments</h5>
-                        <h3>{{ total_appointments }}</h3>
+                        <h5><i class="bi bi-calendar-check"></i> Total Appointments</h5>
+                        <h2 class="fw-bold">{{ total_appointments }}</h2>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-4">
-                <div class="card text-center shadow-sm border-0">
+                <div class="card text-center shadow-sm border-0 bg-warning bg-gradient text-white">
                     <div class="card-body">
-                        <h5 class="text-warning">Pending</h5>
-                        <h3>{{ pending_appointments }}</h3>
+                        <h5><i class="bi bi-hourglass-split"></i> Pending</h5>
+                        <h2 class="fw-bold">{{ pending_appointments }}</h2>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-4">
-                <div class="card text-center shadow-sm border-0">
+                <div class="card text-center shadow-sm border-0 bg-success bg-gradient text-white">
                     <div class="card-body">
-                        <h5 class="text-success">Completed</h5>
-                        <h3>{{ completed_appointments }}</h3>
+                        <h5><i class="bi bi-check-circle"></i> Completed</h5>
+                        <h2 class="fw-bold">{{ completed_appointments }}</h2>
                     </div>
                 </div>
             </div>
@@ -93,64 +214,95 @@
         <!-- APPOINTMENTS TABLE -->
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                <h5 class="fw-bold mb-3">Your Appointments</h5>
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-calendar2-week"></i> Your Appointments
+                </h5>
 
                 {% if appointments %}
-                <table class="table table-bordered">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Service</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in appointments %}
-                        <tr>
-                            <td>{{ a.get_service_display }}</td>
-                            <td>{{ a.date }}</td>
-                            <td>{{ a.time }}</td>
-                            <td>
-                                <span class="badge 
-                                    {% if a.status == 'completed' %}bg-success
-                                    {% elif a.status == 'pending' %}bg-warning
-                                    {% elif a.status == 'cancelled' %}bg-danger
-                                    {% else %}bg-info{% endif %}
-                                ">
-                                    {{ a.status|capfirst }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th><i class="bi bi-tags"></i> Service</th>
+                                <th><i class="bi bi-calendar3"></i> Date</th>
+                                <th><i class="bi bi-clock"></i> Time</th>
+                                <th><i class="bi bi-person-badge"></i> Doctor</th>
+                                <th><i class="bi bi-info-circle"></i> Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in appointments %}
+                            <tr>
+                                <td>{{ a.get_service_display }}</td>
+                                <td>{{ a.date|date:"M d, Y" }}</td>
+                                <td>{{ a.get_time_display }}</td>
+                                <td>{{ a.doctor.full_name }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if a.status == 'completed' %}bg-success
+                                        {% elif a.status == 'pending' %}bg-warning text-dark
+                                        {% elif a.status == 'cancelled' %}bg-danger
+                                        {% elif a.status == 'confirmed' %}bg-info
+                                        {% else %}bg-secondary{% endif %}
+                                    ">
+                                        {{ a.status|capfirst }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
                 <!-- Pagination -->
-                <div class="d-flex justify-content-center">
-                    <nav>
+                {% if appointments.has_other_pages %}
+                <div class="d-flex justify-content-center mt-3">
+                    <nav aria-label="Appointments pagination">
                         <ul class="pagination">
                             {% if appointments.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ appointments.previous_page_number }}">Prev</a>
+                                <a class="page-link" href="?page=1">
+                                    <i class="bi bi-chevron-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ appointments.previous_page_number }}">
+                                    <i class="bi bi-chevron-left"></i> Prev
+                                </a>
                             </li>
                             {% endif %}
 
                             <li class="page-item active">
-                                <a class="page-link">{{ appointments.number }}</a>
+                                <span class="page-link">
+                                    Page {{ appointments.number }} of {{ appointments.paginator.num_pages }}
+                                </span>
                             </li>
 
                             {% if appointments.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ appointments.next_page_number }}">Next</a>
+                                <a class="page-link" href="?page={{ appointments.next_page_number }}">
+                                    Next <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ appointments.paginator.num_pages }}">
+                                    <i class="bi bi-chevron-double-right"></i>
+                                </a>
                             </li>
                             {% endif %}
                         </ul>
                     </nav>
                 </div>
+                {% endif %}
 
                 {% else %}
-                <p>No appointments yet.</p>
+                <div class="text-center py-5">
+                    <i class="bi bi-calendar-x" style="font-size: 4rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">No appointments yet.</p>
+                    <a href="{% url 'appointment' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Book Your First Appointment
+                    </a>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -158,50 +310,181 @@
         <!-- CONTACT MESSAGES -->
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                <h5 class="fw-bold mb-3">Your Contact Queries</h5>
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-chat-left-text"></i> Your Contact Queries
+                </h5>
 
                 {% if contacts %}
-                <ul class="list-group">
+                <ul class="list-group list-group-flush">
                     {% for c in contacts %}
                     <li class="list-group-item">
-                        <strong>{{ c.subject }}</strong><br>
-                        {{ c.message|truncatechars:150 }}<br>
-                        <small class="text-muted">{{ c.created_at|naturaltime }}</small>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">
+                                    <i class="bi bi-envelope"></i> {{ c.subject }}
+                                </h6>
+                                <p class="mb-1 text-muted">{{ c.message|truncatechars:150 }}</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock"></i> {{ c.created_at|naturaltime }}
+                                </small>
+                            </div>
+                            <span
+                                class="badge {% if c.is_resolved %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                {% if c.is_resolved %}Resolved{% else %}Pending{% endif %}
+                            </span>
+                        </div>
                     </li>
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p>No contact messages found.</p>
+                <div class="text-center py-4">
+                    <i class="bi bi-chat-square-dots" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">No contact messages found.</p>
+                    <a href="{% url 'contact' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-send"></i> Send a Message
+                    </a>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-shield-lock me-2"></i>Account Security
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <h6>Login Methods</h6>
+                    <ul class="list-unstyled">
+                        {% if has_password %}
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                            <strong>Password Login:</strong> Enabled
+                        </li>
+                        {% else %}
+                        <li class="mb-2">
+                            <i class="bi bi-x-circle-fill text-warning me-2"></i>
+                            <strong>Password Login:</strong> Not Set
+                        </li>
+                        {% endif %}
+
+                        {% if has_social_account %}
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                            <strong>Social Login:</strong> Connected
+                        </li>
+                        {% else %}
+                        <li class="mb-2">
+                            <i class="bi bi-x-circle-fill text-muted me-2"></i>
+                            <strong>Social Login:</strong> Not Connected
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <h6>Security Actions</h6>
+                    <div class="d-grid gap-2">
+                        {% if has_password %}
+                        <a href="{% url 'change_password' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-key me-2"></i>Change Password
+                        </a>
+                        {% else %}
+                        <a href="{% url 'change_password' %}" class="btn btn-warning btn-sm">
+                            <i class="bi bi-plus-circle me-2"></i>Set Password
+                        </a>
+                        <small class="text-muted mt-2">
+                            You're using social login only. Set a password to enable password-based login as a backup.
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if has_social_account and has_password %}
+            <div class="alert alert-success mt-3 mb-0">
+                <i class="bi bi-shield-check me-2"></i>
+                <strong>Great!</strong> You have both password and social login enabled for maximum security and
+                convenience.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+
+
     {% include "footer.html" %}
 
     <!-- UPDATE PROFILE MODAL -->
-    <div class="modal fade" id="updateModal" tabindex="-1">
+    <div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" id="profileForm">
                     {% csrf_token %}
-                    <div class="modal-header">
-                        <h5 class="modal-title">Update Profile</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="updateModalLabel">
+                            <i class="bi bi-pencil-square"></i> Update Profile
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
 
                     <div class="modal-body">
+                        <!-- Current Avatar Preview -->
+                        <div class="text-center mb-4">
+                            <h6 class="text-muted">Current Avatar</h6>
+                            {% if profile.avatar %}
+                            <img src="{{ profile.avatar.url }}" class="avatar-preview mb-2"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+
+                            <div class="avatar-fallback-small mb-2" style="display: none;">
+                                {{ profile.get_initials }}
+                            </div>
+                            {% else %}
+                            <div class="avatar-fallback-small mb-2">
+                                {% if user.first_name and user.last_name %}
+                                {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                                {% elif user.first_name %}
+                                {{ user.first_name|first|upper }}
+                                {% else %}
+                                {{ user.username|first|upper }}
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <hr>
+
+                        <!-- Form Fields -->
                         {{ form.as_p }}
+
+                        <!-- File Upload Info -->
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Avatar Tips:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Use square images for best results</li>
+                                <li>Maximum file size: 2MB</li>
+                                <li>Supported formats: JPG, PNG, GIF</li>
+                                <li>File will be saved to: media/avatars/filename.jpg</li>
+                            </ul>
+                        </div>
                     </div>
 
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Close
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Changes
+                        </button>
                     </div>
-
                 </form>
-
             </div>
         </div>
     </div>

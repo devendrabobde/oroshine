@@ -1,23 +1,62 @@
 <!DOCTYPE html>
 <html>
-<body>
-    <h2>Your Appointment is Booked!</h2>
+<body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
 
-    <p>Dear {{ appointment.name }},</p>
+    <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 24px;">Appointment Confirmed! ✅</h1>
+    </div>
 
-    <p>Your dental appointment has been successfully scheduled.</p>
+    <div style="padding: 20px;">
+        <p>Dear <strong>{{ appointment.name }}</strong>,</p>
+        <p>Your appointment at OroShine Dental Care has been successfully booked. We look forward to seeing you!</p>
 
-    <ul>
-        <li><strong>Service:</strong> {{ appointment.service }}</li>
-        <li><strong>Date:</strong> {{ appointment.date }}</li>
-        <li><strong>Time:</strong> {{ appointment.time }}</li>
-        <li><strong>Doctor:</strong> {{ appointment.doctor }}</li>
-    </ul>
+        <div style="background-color: #f8f9fa; border-left: 5px solid #0d6efd; padding: 15px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #0d6efd;">📅 Appointment Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 5px 0;"><strong>Service:</strong></td>
+                    <td>{{ appointment.service }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px 0;"><strong>Doctor:</strong></td>
+                    <td>{{ appointment.doctor }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px 0;"><strong>Date:</strong></td>
+                    <td>{{ appointment.date }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px 0;"><strong>Time:</strong></td>
+                    <td>{{ appointment.time }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px 0;"><strong>Status:</strong></td>
+                    <td style="color: green; font-weight: bold;">{{ appointment.status|title }}</td>
+                </tr>
+            </table>
+        </div>
 
-    <p>Status: <strong>{{ appointment.status|title }}</strong></p>
+        <div style="margin-top: 20px;">
+            <h3 style="color: #0d6efd;">📍 Clinic Location</h3>
+            <p style="margin: 5px 0;">
+                <strong>Sai Dental Clinic</strong><br>
+                203, 2nd Floor, Chandrangan Residency Tower,<br>
+                Above GP Parshik Bank, Diva East,<br>
+                Navi Mumbai, Maharashtra – 400612
+            </p>
+            <p>
+                📞 <strong>Phone:</strong> <a href="tel:+918080066633" style="color: #0d6efd;">+91 80800 66633</a>
+            </p>
+            <a href="https://maps.google.com/maps/dir//Sai+Dental+Clinic" target="_blank" 
+               style="display: inline-block; background-color: #0d6efd; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin-top: 10px;">
+               Get Directions on Google Maps
+            </a>
+        </div>
+    </div>
 
-    <p>Thank you for choosing OroShine Dental Care.</p>
+    <div style="background-color: #eee; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+        <p>&copy; 2026 OroShine Dental Care. Please arrive 10 mins early.</p>
+    </div>
 
-    <small>Booked at {{ timestamp }}</small>
 </body>
 </html>
