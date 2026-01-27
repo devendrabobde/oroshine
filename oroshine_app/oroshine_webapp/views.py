@@ -468,6 +468,7 @@ def appointment(request):
         'time_slots': TIME_SLOTS,
     })
 
+
 # ==========================================
 # CANCEL APPOINTMENT
 # ==========================================
@@ -510,6 +511,8 @@ def cancel_appointment(request, appointment_id):
             'status': 'error',
             'message': 'Failed to cancel appointment'
         }, status=500)
+
+
 
 # ==========================================
 # PROFILE & CONTACT
@@ -591,47 +594,6 @@ def user_profile(request):
 
 
 
-
-
-
-
-
-
-
-
-# class CustomPasswordResetView(PasswordResetView):
-#     template_name = "password_reset.html"
-#     success_url = reverse_lazy("password_reset_done")
-
-#     def form_valid(self, form):
-#         email = form.cleaned_data["email"]
-#         users = User.objects.filter(email__iexact=email)
-
-#         # Always show success message (security best practice)
-#         messages.success(
-#             self.request,
-#             "If this email exists, a password reset link has been sent."
-#         )
-
-#         for user in users:
-#             # Generate token & uid
-#             token = self.token_generator.make_token(user)
-#             uid = self.uid_generator.make_uid(user)
-
-#             reset_link = (
-#                 f"{self.request.scheme}://"
-#                 f"{self.request.get_host()}"
-#                 f"{reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})}"
-#             )
-
-#             # 🚀 Send async email
-#             send_password_reset_email_task.delay(
-#                 email=user.email,
-#                 reset_link=reset_link,
-#                 username=user.get_username()
-#             )
-
-#         return HttpResponseRedirect(self.success_url)
 
 
 

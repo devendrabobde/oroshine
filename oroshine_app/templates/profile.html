@@ -107,17 +107,13 @@
                     <div class="col-md-3 text-center">
                         <div class="avatar-container">
                             {% if profile.avatar %}
-                            <!-- User has uploaded avatar -->
                             <img src="{{ profile.avatar.url }}" alt="{{ user.get_full_name|default:user.username }}"
                                 class="avatar"
                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-
-                            <!-- Fallback if image fails to load -->
                             <div class="avatar-fallback" style="display: none;">
                                 {{ profile.get_initials }}
                             </div>
                             {% else %}
-                            <!-- No avatar: Show initials -->
                             <div class="avatar-fallback">
                                 {% if user.first_name and user.last_name %}
                                 {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
@@ -128,12 +124,9 @@
                                 {% endif %}
                             </div>
                             {% endif %}
-
-                            <!-- Active status indicator -->
                             <span class="avatar-status" title="Active"></span>
                         </div>
 
-                        <!-- Change Avatar Button -->
                         <div class="mt-3">
                             <a href="#updateModal" data-bs-toggle="modal" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-camera"></i> Change Photo
@@ -145,7 +138,7 @@
                     <div class="col-md-9">
                         <h4 class="fw-bold mb-1">
                             {% if user.first_name or user.last_name %}
-                            {{ user.first_name }} {{ user.last_name }}
+                            {{ user.first_name|default:"" }} {{ user.last_name|default:"" }}
                             {% else %}
                             {{ user.username }}
                             {% endif %}
@@ -156,20 +149,14 @@
 
                         <div class="row mt-3">
                             <div class="col-md-6">
-                                <p><i class="bi bi-telephone"></i> <strong>Phone:</strong> {{ profile.phone|default:"Not
-                                    added" }}</p>
-                                <p><i class="bi bi-calendar"></i> <strong>Date of Birth:</strong> {{
-                                    profile.date_of_birth|date:"M d, Y"|default:"Not added" }}</p>
-                                <p><i class="bi bi-geo-alt"></i> <strong>City:</strong> {{ profile.city|default:"Not
-                                    added" }}</p>
+                                <p><i class="bi bi-telephone"></i> <strong>Phone:</strong> {{ profile.phone|default:"Not added" }}</p>
+                                <p><i class="bi bi-calendar"></i> <strong>Date of Birth:</strong> {{ profile.date_of_birth|default_if_none:"Not added"|date:"M d, Y" }}</p>
+                                <p><i class="bi bi-geo-alt"></i> <strong>City:</strong> {{ profile.city|default:"Not added" }}</p>
                             </div>
                             <div class="col-md-6">
-                                <p><i class="bi bi-map"></i> <strong>State:</strong> {{ profile.state|default:"Not
-                                    added" }}</p>
-                                <p><i class="bi bi-mailbox"></i> <strong>Zip Code:</strong> {{
-                                    profile.zip_code|default:"Not added" }}</p>
-                                <p><i class="bi bi-clock"></i> <strong>Member Since:</strong> {{
-                                    profile.created_at|date:"M Y" }}</p>
+                                <p><i class="bi bi-map"></i> <strong>State:</strong> {{ profile.state|default:"Not added" }}</p>
+                                <p><i class="bi bi-mailbox"></i> <strong>Zip Code:</strong> {{ profile.zip_code|default:"Not added" }}</p>
+                                <p><i class="bi bi-clock"></i> <strong>Member Since:</strong> {{ profile.created_at|default_if_none:"-"|date:"M Y" }}</p>
                             </div>
                         </div>
 
@@ -187,25 +174,23 @@
                 <div class="card text-center shadow-sm border-0 bg-primary bg-gradient text-white">
                     <div class="card-body">
                         <h5><i class="bi bi-calendar-check"></i> Total Appointments</h5>
-                        <h2 class="fw-bold">{{ total_appointments }}</h2>
+                        <h2 class="fw-bold">{{ total_appointments|default:0 }}</h2>
                     </div>
                 </div>
             </div>
-
             <div class="col-md-4">
                 <div class="card text-center shadow-sm border-0 bg-warning bg-gradient text-white">
                     <div class="card-body">
                         <h5><i class="bi bi-hourglass-split"></i> Pending</h5>
-                        <h2 class="fw-bold">{{ pending_appointments }}</h2>
+                        <h2 class="fw-bold">{{ pending_appointments|default:0 }}</h2>
                     </div>
                 </div>
             </div>
-
             <div class="col-md-4">
                 <div class="card text-center shadow-sm border-0 bg-success bg-gradient text-white">
                     <div class="card-body">
                         <h5><i class="bi bi-check-circle"></i> Completed</h5>
-                        <h2 class="fw-bold">{{ completed_appointments }}</h2>
+                        <h2 class="fw-bold">{{ completed_appointments|default:0 }}</h2>
                     </div>
                 </div>
             </div>
@@ -214,10 +199,7 @@
         <!-- APPOINTMENTS TABLE -->
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                <h5 class="fw-bold mb-3">
-                    <i class="bi bi-calendar2-week"></i> Your Appointments
-                </h5>
-
+                <h5 class="fw-bold mb-3"><i class="bi bi-calendar2-week"></i> Your Appointments</h5>
                 {% if appointments %}
                 <div class="table-responsive">
                     <table class="table table-hover table-bordered align-middle">
@@ -233,10 +215,10 @@
                         <tbody>
                             {% for a in appointments %}
                             <tr>
-                                <td>{{ a.get_service_display }}</td>
-                                <td>{{ a.date|date:"M d, Y" }}</td>
-                                <td>{{ a.get_time_display }}</td>
-                                <td>{{ a.doctor.full_name }}</td>
+                                <td>{{ a.get_service_display|default:"-" }}</td>
+                                <td>{{ a.date|default_if_none:"-"|date:"M d, Y" }}</td>
+                                <td>{{ a.get_time_display|default:"-" }}</td>
+                                <td>{{ a.doctor.full_name|default:"-" }}</td>
                                 <td>
                                     <span class="badge 
                                         {% if a.status == 'completed' %}bg-success
@@ -245,7 +227,7 @@
                                         {% elif a.status == 'confirmed' %}bg-info
                                         {% else %}bg-secondary{% endif %}
                                     ">
-                                        {{ a.status|capfirst }}
+                                        {{ a.status|capfirst|default:"-" }}
                                     </span>
                                 </td>
                             </tr>
@@ -253,48 +235,6 @@
                         </tbody>
                     </table>
                 </div>
-
-                <!-- Pagination -->
-                {% if appointments.has_other_pages %}
-                <div class="d-flex justify-content-center mt-3">
-                    <nav aria-label="Appointments pagination">
-                        <ul class="pagination">
-                            {% if appointments.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page=1">
-                                    <i class="bi bi-chevron-double-left"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ appointments.previous_page_number }}">
-                                    <i class="bi bi-chevron-left"></i> Prev
-                                </a>
-                            </li>
-                            {% endif %}
-
-                            <li class="page-item active">
-                                <span class="page-link">
-                                    Page {{ appointments.number }} of {{ appointments.paginator.num_pages }}
-                                </span>
-                            </li>
-
-                            {% if appointments.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ appointments.next_page_number }}">
-                                    Next <i class="bi bi-chevron-right"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ appointments.paginator.num_pages }}">
-                                    <i class="bi bi-chevron-double-right"></i>
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                </div>
-                {% endif %}
-
                 {% else %}
                 <div class="text-center py-5">
                     <i class="bi bi-calendar-x" style="font-size: 4rem; color: #ccc;"></i>
@@ -310,26 +250,18 @@
         <!-- CONTACT MESSAGES -->
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                <h5 class="fw-bold mb-3">
-                    <i class="bi bi-chat-left-text"></i> Your Contact Queries
-                </h5>
-
+                <h5 class="fw-bold mb-3"><i class="bi bi-chat-left-text"></i> Your Contact Queries</h5>
                 {% if contacts %}
                 <ul class="list-group list-group-flush">
                     {% for c in contacts %}
                     <li class="list-group-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">
-                                    <i class="bi bi-envelope"></i> {{ c.subject }}
-                                </h6>
-                                <p class="mb-1 text-muted">{{ c.message|truncatechars:150 }}</p>
-                                <small class="text-muted">
-                                    <i class="bi bi-clock"></i> {{ c.created_at|naturaltime }}
-                                </small>
+                                <h6 class="mb-1"><i class="bi bi-envelope"></i> {{ c.subject|default:"-" }}</h6>
+                                <p class="mb-1 text-muted">{{ c.message|truncatechars:150|default:"-" }}</p>
+                                <small class="text-muted"><i class="bi bi-clock"></i> {{ c.created_at|naturaltime|default:"-" }}</small>
                             </div>
-                            <span
-                                class="badge {% if c.is_resolved %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                            <span class="badge {% if c.is_resolved %}bg-success{% else %}bg-warning text-dark{% endif %}">
                                 {% if c.is_resolved %}Resolved{% else %}Pending{% endif %}
                             </span>
                         </div>
@@ -349,74 +281,6 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-                <i class="bi bi-shield-lock me-2"></i>Account Security
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <h6>Login Methods</h6>
-                    <ul class="list-unstyled">
-                        {% if has_password %}
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                            <strong>Password Login:</strong> Enabled
-                        </li>
-                        {% else %}
-                        <li class="mb-2">
-                            <i class="bi bi-x-circle-fill text-warning me-2"></i>
-                            <strong>Password Login:</strong> Not Set
-                        </li>
-                        {% endif %}
-
-                        {% if has_social_account %}
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                            <strong>Social Login:</strong> Connected
-                        </li>
-                        {% else %}
-                        <li class="mb-2">
-                            <i class="bi bi-x-circle-fill text-muted me-2"></i>
-                            <strong>Social Login:</strong> Not Connected
-                        </li>
-                        {% endif %}
-                    </ul>
-                </div>
-
-                <div class="col-md-6 mb-3">
-                    <h6>Security Actions</h6>
-                    <div class="d-grid gap-2">
-                        {% if has_password %}
-                        <a href="{% url 'change_password' %}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-key me-2"></i>Change Password
-                        </a>
-                        {% else %}
-                        <a href="{% url 'change_password' %}" class="btn btn-warning btn-sm">
-                            <i class="bi bi-plus-circle me-2"></i>Set Password
-                        </a>
-                        <small class="text-muted mt-2">
-                            You're using social login only. Set a password to enable password-based login as a backup.
-                        </small>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            {% if has_social_account and has_password %}
-            <div class="alert alert-success mt-3 mb-0">
-                <i class="bi bi-shield-check me-2"></i>
-                <strong>Great!</strong> You have both password and social login enabled for maximum security and
-                convenience.
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-
-
     {% include "footer.html" %}
 
     <!-- UPDATE PROFILE MODAL -->
@@ -425,15 +289,10 @@
             <div class="modal-content">
                 <form method="POST" enctype="multipart/form-data" id="profileForm">
                     {% csrf_token %}
-
                     <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="updateModalLabel">
-                            <i class="bi bi-pencil-square"></i> Update Profile
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                        <h5 class="modal-title" id="updateModalLabel"><i class="bi bi-pencil-square"></i> Update Profile</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-
                     <div class="modal-body">
                         <!-- Current Avatar Preview -->
                         <div class="text-center mb-4">
@@ -441,7 +300,6 @@
                             {% if profile.avatar %}
                             <img src="{{ profile.avatar.url }}" class="avatar-preview mb-2"
                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-
                             <div class="avatar-fallback-small mb-2" style="display: none;">
                                 {{ profile.get_initials }}
                             </div>
@@ -457,16 +315,10 @@
                             </div>
                             {% endif %}
                         </div>
-
                         <hr>
-
-                        <!-- Form Fields -->
                         {{ form.as_p }}
-
-                        <!-- File Upload Info -->
                         <div class="alert alert-info mt-3">
-                            <i class="bi bi-info-circle"></i>
-                            <strong>Avatar Tips:</strong>
+                            <i class="bi bi-info-circle"></i> <strong>Avatar Tips:</strong>
                             <ul class="mb-0 mt-2">
                                 <li>Use square images for best results</li>
                                 <li>Maximum file size: 2MB</li>
@@ -475,7 +327,6 @@
                             </ul>
                         </div>
                     </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-circle"></i> Close
@@ -490,5 +341,4 @@
     </div>
 
 </body>
-
 </html>

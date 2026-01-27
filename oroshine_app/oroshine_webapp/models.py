@@ -277,7 +277,7 @@ class Service(models.Model):
 class Appointment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments', db_index=True)
     service = models.CharField(max_length=100, choices=SERVICE_CHOICES, db_index=True)
-    doctor = models.ForeignKey(Doctor, on_delete=models.PROTECT, related_name='appointments')
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='appointments')
     name = models.CharField(max_length=100)
     email = models.EmailField()
     phone = models.CharField(max_length=15)

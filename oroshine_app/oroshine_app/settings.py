@@ -68,7 +68,7 @@ INSTALLED_APPS = [
     'oroshine_webapp',
 ]
 
-SITE_ID = 0
+SITE_ID = 8
 
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
@@ -366,10 +366,20 @@ COMPRESS_CSS_FILTERS = [
     'compressor.filters.css_default.CssAbsoluteFilter',
     'compressor.filters.cssmin.CSSMinFilter',
 ]
-COMPRESS_JS_FILTERS = ['compressor.filters.jsmin.JSMinFilter']
+# COMPRESS_JS_FILTERS = ['compressor.filters.jsmin.JSMinFilter']
 
+COMPRESS_JS_FILTERS =[]
+
+
+
+# Compress output settings
+COMPRESS_OUTPUT_DIR = 'CACHE'
+COMPRESS_STORAGE = 'compressor.storage.CompressorFileStorage'
+
+# Parser settings
+COMPRESS_PARSER = 'compressor.parser.HtmlParser'
 # ==========================================
-# EMAIL CONFIGURATION and NoCodeAPI
+# EMAIL CONFIGURATION SMTP
 # ==========================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
@@ -380,10 +390,35 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 ADMIN_EMAIL = config('ADMIN_EMAIL', default=EMAIL_HOST_USER)
 
-# ⚠️ FIX: Add missing NOCODEAPI_KEY
-NOCODEAPI_BASE_URL = config('NOCODEAPI_BASE_URL')
-NOCODEAPI_KEY = config('NOCODEAPI_KEY', default='') 
 
+
+# ==========================================
+# GOOGLE CALENDAR API CONFIGURATION
+# ==========================================
+# GOOGLE CALENDAR API CONFIGURATION
+# GOOGLE_CALENDAR_ID = config('GOOGLE_CALENDAR_ID', default='primary')
+
+GOOGLE_CALENDAR_ID="37d2bdca1b71cfa34c3af9d25354088a96085da7cbd5c6853e8cce116dfc47c0@group.calendar.google.com"
+
+GOOGLE_SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.events",
+]
+
+
+# Reconstruct the Service Account Dictionary from Env Vars
+GOOGLE_SERVICE_ACCOUNT_INFO = {
+    "type": "service_account",
+    "project_id": config("GOOGLE_PROJECT_ID"),
+    "private_key_id": config("GOOGLE_PRIVATE_KEY_ID"),
+    "private_key": config("GOOGLE_PRIVATE_KEY").replace('\\n', '\n'),
+    "client_email": config("GOOGLE_CLIENT_EMAIL"),
+    "client_id": config("GOOGLE_CLIENT_ID"),
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": config("GOOGLE_CLIENT_CERT_URL"),
+}
 
 
 
@@ -465,8 +500,8 @@ CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 # Development tools
 if DEBUG:
-    # INSTALLED_APPS += ["debug_toolbar"]
-    # MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
     import socket
     hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())

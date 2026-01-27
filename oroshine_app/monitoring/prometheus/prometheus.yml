@@ -2,9 +2,9 @@
 # Optimized for t2.micro with minimal resource usage
 
 global:
-  scrape_interval: 30s
-  evaluation_interval: 30s
-  scrape_timeout: 10s
+  scrape_interval: 40s
+  evaluation_interval: 40s
+  scrape_timeout: 20s
   external_labels:
     cluster: 'oroshine-production'
     environment: 'prod'

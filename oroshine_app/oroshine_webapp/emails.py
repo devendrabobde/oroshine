@@ -46,12 +46,12 @@ def send_appointment_emails(appointment):
     )
 
     # 2. Admin Notification
-    send_html_email(
-        subject=f"🔔 New Booking: {appointment.name} - {appointment.service}",
-        template_name="emails/appointment_admin.html",
-        context=context,
-        recipient_list=[settings.ADMIN_EMAIL]
-    )
+    # send_html_email(
+    #     subject=f"🔔 New Booking: {appointment.name} - {appointment.service}",
+    #     template_name="emails/appointment_admin.html",
+    #     context=context,
+    #     recipient_list=[settings.ADMIN_EMAIL]
+    # )
 
     # 3. Doctor Notification (if applicable)
     if appointment.doctor and appointment.doctor.email:
