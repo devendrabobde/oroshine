@@ -92,9 +92,6 @@ def debug_task(self):
 
 
 
-
-
-
 #  cerely beat 
 
 
@@ -117,7 +114,7 @@ app.conf.beat_schedule = {
     # Runs every 10 seconds (learning / testing)
     'heartbeat-every-10-seconds': {
         'task': 'oroshine_webapp.tasks.heartbeat',
-        'schedule': 10.0,
+        'schedule': 1.0,
     },
 }
 

@@ -3,9 +3,91 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.cache import cache
-from PIL import Image
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+from PIL import Image
 from prometheus_client import Gauge
+from datetime import datetime, timedelta
+import re
+from django.db.models import Count, Q
+
+
+# Install: pip install python-ulid --break-system-packages
+from ulid import ULID
+
+# ====================================
+# ULID FIELD
+# ====================================
+
+class ULIDField(models.CharField):
+    """
+    Custom ULID field with automatic generation and validation.
+    ULIDs are better than UUIDs/auto-increment because:
+    - Sortable by creation time (timestamp-based)
+    - Better indexing performance (lexicographically sortable)
+    - URL-safe, case-insensitive
+    - 128-bit like UUID but more compact (26 chars vs 36)
+    """
+    
+    def __init__(self, *args, **kwargs):
+        kwargs['max_length'] = 26
+        kwargs['unique'] = True
+        kwargs['editable'] = False
+        kwargs['db_index'] = True
+        super().__init__(*args, **kwargs)
+    
+    def pre_save(self, model_instance, add):
+        value = getattr(model_instance, self.attname)
+        if add and not value:
+            value = str(ULID())
+            setattr(model_instance, self.attname, value)
+        return value
+    
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        del kwargs['max_length']
+        del kwargs['unique']
+        del kwargs['editable']
+        del kwargs['db_index']
+        return name, path, args, kwargs
+
+
+# ====================================
+# VALIDATORS
+# ====================================
+
+def validate_phone_number(value):
+    """Validate phone number format (10-15 digits, optional +)"""
+    if value:
+        pattern = r'^\+?[\d]{10,15}$'
+        if not re.match(pattern, value.replace('-', '').replace(' ', '')):
+            raise ValidationError(
+                'Phone number must be 10-15 digits, optionally starting with +'
+            )
+
+
+def validate_future_date(value):
+    """Ensure appointment date is not in the past"""
+    if value < timezone.now().date():
+        raise ValidationError('Appointment date cannot be in the past')
+
+
+def validate_business_hours(value):
+    """Validate time is within business hours"""
+    try:
+        hour = int(value.split(':')[0])
+        # Morning: 9-14 (9 AM - 2 PM), Evening: 18-21 (6 PM - 9 PM)
+        if not ((9 <= hour < 14) or (18 <= hour < 21)):
+            raise ValidationError('Time must be within business hours (9 AM-2 PM or 6 PM-9 PM)')
+    except (ValueError, IndexError):
+        raise ValidationError('Invalid time format')
+
+
+def validate_zip_code(value):
+    """Validate ZIP code (6 digits for India)"""
+    if value and not re.match(r'^\d{6}$', value):
+        raise ValidationError('ZIP code must be 6 digits')
+
 
 # ====================================
 # DOCTOR MANAGER & MODEL
@@ -13,17 +95,11 @@ from prometheus_client import Gauge
 
 class DoctorManager(models.Manager):
     def active_doctors(self):
-        """
-        Return a QuerySet of active doctors (NOT a list).
-        ⚠️ FIX: Return QuerySet directly for form compatibility.
-        """
+        """Return a QuerySet of active doctors (NOT a list)."""
         return self.filter(is_active=True).order_by('display_order', 'full_name')
 
     def get_doctor_choices(self):
-        """
-        Return list of tuples (id, name) for ChoiceField.
-        Caches choices for performance.
-        """
+        """Return list of tuples (id, name) for ChoiceField. Caches choices."""
         cache_key = 'doctor_form_choices'
         choices = cache.get(cache_key)
 
@@ -33,6 +109,7 @@ class DoctorManager(models.Manager):
             cache.set(cache_key, choices, 3600)
 
         return choices
+
 
 class Doctor(models.Model):
     email = models.EmailField(unique=True, db_index=True)
@@ -48,13 +125,15 @@ class Doctor(models.Model):
 
     def __str__(self):
         return f"Dr. {self.full_name}"
+    
+    def clean(self):
+        """Validate doctor data"""
+        if self.full_name and len(self.full_name.strip()) < 2:
+            raise ValidationError({'full_name': 'Name must be at least 2 characters'})
 
     @classmethod
     def cached_active_doctors(cls):
-        """
-        ⚠️ FIX: Return QuerySet for form compatibility.
-        Cache only the IDs, return fresh QuerySet.
-        """
+        """Return QuerySet for form compatibility. Cache only the IDs."""
         cache_key = "active_doctor_ids"
         ids = cache.get(cache_key)
 
@@ -66,17 +145,17 @@ class Doctor(models.Model):
             )
             cache.set(cache_key, ids, 3600)
 
-        # Return QuerySet (forms need QuerySet, not list)
         return cls.objects.filter(id__in=ids).order_by('display_order', 'full_name')
 
     def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
-        # Invalidate cache when doctors change
         cache.delete("active_doctor_ids")
         cache.delete("doctor_form_choices")
 
+
 # ====================================
-# CHOICES
+# CHOICES (Only TIME_SLOTS and STATUS remain static)
 # ====================================
 
 TIME_SLOTS = (
@@ -102,23 +181,13 @@ STATUS_CHOICES = (
     ('completed', 'Completed'),
 )
 
-SERVICE_CHOICES = (
-    ('checkup', 'General Checkup'),
-    ('cleaning', 'Teeth Cleaning'),
-    ('filling', 'Dental Filling'),
-    ('extraction', 'Tooth Extraction'),
-    ('root_canal', 'Root Canal'),
-    ('whitening', 'Teeth Whitening'),
-    ('braces', 'Braces Consultation'),
-    ('emergency', 'Emergency'),
-)
-
 # Prometheus metrics
 active_appointments = Gauge(
     'active_appointments_by_status',
     'Active appointments by status',
     ['status']
 )
+
 
 # ====================================
 # CUSTOM MANAGERS
@@ -131,6 +200,37 @@ class UserProfileManager(models.Manager):
     def active_profiles(self):
         return self.select_related('user').filter(user__is_active=True)
 
+
+class ServiceManager(models.Manager):
+    def active_services(self):
+        """Return QuerySet of active services"""
+        return self.filter(is_active=True).order_by('display_order', 'name')
+    
+    def get_service_choices(self):
+        """Return list of tuples (id, name) for ChoiceField. Caches choices."""
+        cache_key = 'service_form_choices'
+        choices = cache.get(cache_key)
+
+        if choices is None:
+            services = self.active_services()
+            choices = [(service.id, service.name) for service in services]
+            cache.set(cache_key, choices, 3600)
+
+        return choices
+    
+    def get_service_code_choices(self):
+        """Return list of tuples (code, name) for backwards compatibility"""
+        cache_key = 'service_code_choices'
+        choices = cache.get(cache_key)
+
+        if choices is None:
+            services = self.active_services()
+            choices = [(service.code, service.name) for service in services]
+            cache.set(cache_key, choices, 3600)
+
+        return choices
+
+
 class AppointmentManager(models.Manager):
     def upcoming_for_user(self, user_id, limit=5):
         return (
@@ -139,8 +239,8 @@ class AppointmentManager(models.Manager):
                 status__in=['pending', 'confirmed'],
                 date__gte=timezone.now().date()
             )
-            .select_related('doctor')
-            .only('id', 'date', 'time', 'service', 'status', 'doctor__full_name')
+            .select_related('doctor', 'service')
+            .only('ulid', 'date', 'time', 'status', 'doctor__full_name', 'service__name')
             .order_by('date', 'time')[:limit]
         )
     
@@ -154,22 +254,23 @@ class AppointmentManager(models.Manager):
         )
     
     def with_counts_by_status(self, user_id):
-        from django.db.models import Count, Q
         return self.filter(user_id=user_id).aggregate(
-            total=Count('id'),
-            pending=Count('id', filter=Q(status='pending')),
-            confirmed=Count('id', filter=Q(status='confirmed')),
-            completed=Count('id', filter=Q(status='completed')),
-            cancelled=Count('id', filter=Q(status='cancelled'))
+            total=Count('ulid'),
+            pending=Count('ulid', filter=Q(status='pending')),
+            confirmed=Count('ulid', filter=Q(status='confirmed')),
+            completed=Count('ulid', filter=Q(status='completed')),
+            cancelled=Count('ulid', filter=Q(status='cancelled'))
         )
+
 
 class ContactManager(models.Manager):
     def recent_for_user(self, user_id, limit=5):
         return (
             self.filter(user_id=user_id)
-            .only('id', 'subject', 'created_at', 'is_resolved')
+            .only('ulid', 'subject', 'created_at', 'is_resolved')
             .order_by('-created_at')[:limit]
         )
+
 
 # ====================================
 # MODELS
@@ -177,16 +278,29 @@ class ContactManager(models.Manager):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    phone = models.CharField(max_length=15, blank=True, db_index=True)
+    phone = models.CharField(
+        max_length=15, 
+        blank=True, 
+        db_index=True,
+        validators=[validate_phone_number]
+    )
     date_of_birth = models.DateField(null=True, blank=True)
     address = models.TextField(max_length=500, blank=True)
     city = models.CharField(max_length=100, blank=True, db_index=True)
     state = models.CharField(max_length=100, blank=True)
-    zip_code = models.CharField(max_length=10, blank=True)
+    zip_code = models.CharField(
+        max_length=10, 
+        blank=True,
+        validators=[validate_zip_code]
+    )
     welcome_email_sent = models.BooleanField(default=False)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     emergency_contact_name = models.CharField(max_length=100, blank=True)
-    emergency_contact_phone = models.CharField(max_length=15, blank=True)
+    emergency_contact_phone = models.CharField(
+        max_length=15, 
+        blank=True,
+        validators=[validate_phone_number]
+    )
     medical_history = models.TextField(max_length=1000, blank=True)
     allergies = models.TextField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -203,10 +317,20 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"Profile #{self.user_id}"
+    
+    def clean(self):
+        """Validate profile data"""
+        if self.date_of_birth and self.date_of_birth > timezone.now().date():
+            raise ValidationError({'date_of_birth': 'Date of birth cannot be in the future'})
+        
+        if self.date_of_birth:
+            age = (timezone.now().date() - self.date_of_birth).days / 365.25
+            if age > 150:
+                raise ValidationError({'date_of_birth': 'Invalid date of birth'})
 
     def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
-        # Invalidate user cache on save
         cache.delete(f'user_profile:{self.user_id}')
         
         # Resize avatar efficiently
@@ -219,7 +343,9 @@ class UserProfile(models.Model):
             except Exception:
                 pass
 
+
 class Contact(models.Model):
+    ulid = ULIDField(primary_key=True)  # ULID as primary key
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='contacts')
     name = models.CharField(max_length=250, db_index=True)
     email = models.EmailField(db_index=True)
@@ -240,49 +366,132 @@ class Contact(models.Model):
 
     def __str__(self):
         return f"{self.subject} - {self.created_at.date()}"
+    
+    def clean(self):
+        """Validate contact data"""
+        if self.name and len(self.name.strip()) < 2:
+            raise ValidationError({'name': 'Name must be at least 2 characters'})
+        
+        if self.subject and len(self.subject.strip()) < 5:
+            raise ValidationError({'subject': 'Subject must be at least 5 characters'})
+        
+        if self.message and len(self.message.strip()) < 10:
+            raise ValidationError({'message': 'Message must be at least 10 characters'})
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class Service(models.Model):
+    """
+    Dynamic Service model - replaces hardcoded SERVICE_CHOICES tuple.
+    Allows admin to add/edit/remove services from Django admin.
+    """
+    ulid = ULIDField(primary_key=True)  # ULID as primary key
     name = models.CharField(max_length=100, unique=True, db_index=True)
-    code = models.CharField(max_length=50, unique=True)
+    code = models.SlugField(max_length=50, unique=True, db_index=True)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     duration_minutes = models.IntegerField(default=30)
     is_active = models.BooleanField(default=True, db_index=True)
+    display_order = models.PositiveIntegerField(default=0)
+    icon = models.CharField(max_length=50, blank=True, help_text="Font Awesome icon class (e.g., fa-tooth)")
+    color = models.CharField(max_length=7, default='#007bff', help_text="Hex color code")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ServiceManager()
 
     class Meta:
-        ordering = ['name']
+        ordering = ['display_order', 'name']
         indexes = [
             models.Index(fields=['is_active', 'code']),
+            models.Index(fields=['display_order', 'is_active']),
         ]
 
     def __str__(self):
         return self.name
     
+    def clean(self):
+        """Validate service data"""
+        if self.name and len(self.name.strip()) < 3:
+            raise ValidationError({'name': 'Service name must be at least 3 characters'})
+        
+        if self.price < 0:
+            raise ValidationError({'price': 'Price cannot be negative'})
+        
+        if self.duration_minutes < 15 or self.duration_minutes > 240:
+            raise ValidationError({'duration_minutes': 'Duration must be between 15 and 240 minutes'})
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+        # Invalidate service-related caches
+        cache.delete('active_services_list')
+        cache.delete('service_form_choices')
+        cache.delete('service_code_choices')
+    
     @classmethod
     def get_cached_active_services(cls):
+        """Get cached list of active services"""
         cache_key = 'active_services_list'
         services = cache.get(cache_key)
         
         if services is None:
             services = list(
                 cls.objects.filter(is_active=True)
-                .only('id', 'name', 'code', 'price')
-                .order_by('name')
+                .only('ulid', 'name', 'code', 'price', 'duration_minutes')
+                .order_by('display_order', 'name')
             )
             cache.set(cache_key, services, 86400)
         
         return services
+    
+    @classmethod
+    def cached_active_services(cls):
+        """Return QuerySet for form compatibility"""
+        cache_key = "active_service_ids"
+        ids = cache.get(cache_key)
+
+        if ids is None:
+            ids = list(
+                cls.objects.filter(is_active=True)
+                .values_list('ulid', flat=True)
+                .order_by('display_order', 'name')
+            )
+            cache.set(cache_key, ids, 3600)
+
+        return cls.objects.filter(ulid__in=ids).order_by('display_order', 'name')
+
 
 class Appointment(models.Model):
+    ulid = ULIDField(primary_key=True)  # ULID as primary key
+    # id = models.BigAutoField(unique=True, db_index=True)  # Keep numeric ID for legacy
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments', db_index=True)
-    service = models.CharField(max_length=100, choices=SERVICE_CHOICES, db_index=True)
+    service = models.ForeignKey(
+        Service, 
+        on_delete=models.PROTECT,  # Prevent deletion of services with appointments
+        related_name='appointments',
+        db_index=True
+    )
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='appointments')
     name = models.CharField(max_length=100)
     email = models.EmailField()
-    phone = models.CharField(max_length=15)
-    date = models.DateField(db_index=True)
-    time = models.CharField(max_length=5, choices=TIME_SLOTS, db_index=True)
+    phone = models.CharField(
+        max_length=15,
+        validators=[validate_phone_number]
+    )
+    date = models.DateField(
+        db_index=True,
+        validators=[validate_future_date]
+    )
+    time = models.CharField(
+        max_length=5, 
+        choices=TIME_SLOTS, 
+        db_index=True,
+        validators=[validate_business_hours]
+    )
     message = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     calendar_event_id = models.CharField(max_length=255, blank=True, null=True)
@@ -293,39 +502,94 @@ class Appointment(models.Model):
 
     objects = AppointmentManager()
 
+
     class Meta:
         ordering = ['-date', '-time']
-        unique_together = [['doctor', 'date', 'time']]
+        constraints = [
+        models.UniqueConstraint(
+            fields=['doctor', 'date', 'time'],
+            condition=Q(status__in=['pending', 'confirmed']),
+            name='unique_active_doctor_slot'
+            )
+        ]
         indexes = [
             models.Index(
-                fields=['doctor', 'date', 'time', 'status'],
-                name='idx_slot_lookup'
+            fields=['doctor', 'date', 'time', 'status'],
+            name='idx_slot_lookup'
             ),
             models.Index(
-                fields=['user', '-date'],
-                name='idx_user_recent'
+            fields=['user', '-date'],
+            name='idx_user_recent'
             ),
-            models.Index(
-                fields=['date', 'status'],
-                name='idx_reminder_scan'
-            ),
-            models.Index(
-                fields=['doctor', 'date'],
-                name='idx_doctor_day'
+        models.Index(
+            fields=['date', 'status'],
+            name='idx_reminder_scan'
+        ),
+        models.Index(
+            fields=['doctor', 'date'],
+            name='idx_doctor_day'
+        ),
+        models.Index(
+            fields=['service', 'date'],
+            name='idx_service_date'
             ),
         ]
 
+
+
     def __str__(self):
         doctor_name = f"Dr. {self.doctor.full_name}" if self.doctor else "No Doctor"
-        return f"Appt#{self.id} - {doctor_name} - {self.date} {self.time}"
+        service_name = self.service.name if self.service else "No Service"
+        return f"Appt#{self.ulid} - {doctor_name} - {service_name} - {self.date} {self.time}"
+    
+    def clean(self):
+        """Validate appointment data"""
+        # Validate name
+        if self.name and len(self.name.strip()) < 2:
+            raise ValidationError({'name': 'Name must be at least 2 characters'})
+        
+        # Validate service is active
+        if self.service_id and not self.service.is_active:
+            raise ValidationError({'service': 'This service is no longer available'})
+        
+        # Check for double booking
+        if self.doctor_id and self.date and self.time:
+            existing = Appointment.objects.filter(
+                doctor_id=self.doctor_id,
+                date=self.date,
+                time=self.time,
+                status__in=['pending', 'confirmed']
+            ).exclude(ulid=self.ulid)
+            
+            if existing.exists():
+                raise ValidationError({
+                    'time': f'This time slot is already booked for Dr. {self.doctor.full_name}'
+                })
+        
+        # Validate date is not too far in future (1 year max)
+        if self.date:
+            max_date = timezone.now().date() + timedelta(days=365)
+            if self.date > max_date:
+                raise ValidationError({'date': 'Cannot book appointments more than 1 year in advance'})
     
     def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
+        
         # Invalidate relevant caches
         if self.doctor_id:
             cache.delete(f"slots:{self.doctor_id}:{self.date}")
         cache.delete(f'sidebar_appt:{self.user_id}')
         cache.delete(f'user_appointment_stats:{self.user_id}')
+    
+    def get_service_display(self):
+        """Get service name for display"""
+        return self.service.name if self.service else "Unknown Service"
+    
+    def get_service_price(self):
+        """Get service price"""
+        return self.service.price if self.service else 0
+
 
 class Newsletter(models.Model):
     email = models.EmailField(unique=True, db_index=True)
@@ -342,12 +606,13 @@ class Newsletter(models.Model):
     def __str__(self):
         return self.email
 
+
 @receiver(post_save, sender=Appointment)
 def update_appointment_metrics(sender, instance, **kwargs):
     """Update appointment metrics on save"""
     from django.db.models import Count
     
-    stats = Appointment.objects.values('status').annotate(count=Count('id'))
+    stats = Appointment.objects.values('status').annotate(count=Count('ulid'))
     
     for stat in stats:
         active_appointments.labels(status=stat['status']).set(stat['count'])

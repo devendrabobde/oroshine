@@ -175,4 +175,15 @@
             return false;
         });
     });
+
+     jQuery(window).on("load", function () {
+        if (jQuery(".twentytwenty-container").length) {
+            jQuery(".twentytwenty-container").twentytwenty({
+                default_offset_pct: 0.5,
+                orientation: "horizontal",
+                before_label: "Before",
+                after_label: "After"
+            });
+        }
+    });
 </script>

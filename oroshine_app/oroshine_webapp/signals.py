@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 
-
 @receiver(post_save, sender=User)
 def track_active_users(sender, instance, created, **kwargs):
     count = User.objects.filter(is_active=True).count()

@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.views import PasswordResetView
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.core.validators import validate_email, ValidationError
@@ -22,19 +23,20 @@ import json
 import random
 from django.conf import settings
 from django.http import HttpResponse,HttpResponseRedirect
-import uuid
 from allauth.account.models import EmailAddress
 from allauth.account.utils import send_email_confirmation
-from django.contrib.auth.views import PasswordResetView
 from django.urls import reverse_lazy,reverse
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.db.models import Count, Q
+
+from ulid import ULID
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from .models import (
     Contact, Appointment, UserProfile,
-    Doctor, TIME_SLOTS, STATUS_CHOICES, SERVICE_CHOICES
+    Doctor, TIME_SLOTS, STATUS_CHOICES
 )
 from .forms import NewUserForm, UserProfileForm, AppointmentForm
 
@@ -43,14 +45,9 @@ from .tasks import (
     send_appointment_email_task,
     send_welcome_email_task,
     send_contact_email_task,
-    send_password_reset_email_task
+    send_password_reset_email_task,
+    send_password_reset_success_email_task
 )
-
-
-
-
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -383,7 +380,7 @@ def appointment(request):
 
         # Redis distributed lock
         lock_key = f"lock:slot:{doctor.id}:{date}:{time}"
-        lock_value = str(uuid.uuid4())
+        lock_value = str(ULID())
 
         if not cache.add(lock_key, lock_value, LOCK_TTL):
             logger.warning(f"Lock failed for slot {doctor.id}:{date}:{time}")
@@ -423,25 +420,25 @@ def appointment(request):
                     status='pending'
                 )
 
-                logger.info(f"✓ Appointment created: ID={appt.id}")
+                logger.info(f"✓ Appointment created: ID={appt.ulid}")
 
                 # Invalidate slot cache
                 cache.delete(f"slots:{doctor.id}:{date}")
 
                 # ⚠️ FIX: Queue tasks ONLY with .delay()
                 transaction.on_commit(
-                    lambda: send_appointment_email_task.delay(appt.id)
+                    lambda: send_appointment_email_task.delay(appt.ulid)
                 )
 
                 transaction.on_commit(
-                    lambda: create_calendar_event_task.delay(appt.id)
+                    lambda: create_calendar_event_task.delay(appt.ulid)
                 )
 
-                logger.info(f"✓ Tasks queued for appointment {appt.id}")
+                logger.info(f"✓ Tasks queued for appointment {appt.ulid}")
 
             return JsonResponse({
                 'status': 'success',
-                'appointment_id': appt.id,
+                'appointment_id': appt.ulid,
                 'redirect_url': '/appointment'
             })
 
@@ -473,46 +470,45 @@ def appointment(request):
 # CANCEL APPOINTMENT
 # ==========================================
 
-@require_http_methods(["POST"])
+from .tasks import send_appointment_cancel_email_task
+
 @login_required
+@require_http_methods(["POST"])
 def cancel_appointment(request, appointment_id):
-    """Cancel an appointment"""
     try:
-        appt = Appointment.objects.get(id=appointment_id, user=request.user)
-        
-        if appt.status in ['cancelled', 'completed']:
-            return JsonResponse({
-                'status': 'error',
-                'message': f'Cannot cancel {appt.status} appointment'
-            }, status=400)
-        
-        appt.status = 'cancelled'
-        appt.save(update_fields=['status', 'updated_at'])
-        
-        # Invalidate cache
-        cache_key = f"slots:{appt.doctor_id}:{appt.date}"
-        cache.delete(cache_key)
-        
-        logger.info(f"Appointment {appointment_id} cancelled by user {request.user.id}")
-        
+        with transaction.atomic():
+            appt = Appointment.objects.select_for_update().get(
+                ulid=appointment_id,
+                user=request.user
+            )
+
+            if appt.status in ['cancelled', 'completed', 'confirmed']:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Cannot cancel {appt.status} appointment'
+                }, status=400)
+
+            appt.status = 'cancelled'
+            appt.save(update_fields=['status', 'updated_at'])
+
+            cache.delete(f"slots:{appt.doctor_id}:{appt.date}")
+
+            transaction.on_commit(
+                lambda: send_appointment_cancel_email_task.delay(appt.ulid)
+            )
+
+        invalidate_user_cache(request.user.id)
+
         return JsonResponse({
             'status': 'success',
             'message': 'Appointment cancelled successfully'
         })
-        
+
     except Appointment.DoesNotExist:
         return JsonResponse({
             'status': 'error',
             'message': 'Appointment not found'
         }, status=404)
-    except Exception as e:
-        logger.exception(f"Error cancelling appointment {appointment_id}")
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Failed to cancel appointment'
-        }, status=500)
-
-
 
 # ==========================================
 # PROFILE & CONTACT
@@ -546,54 +542,82 @@ def contact(request):
             
     return render(request, 'contact.html')
 
+
 @login_required
 def user_profile(request):
     user = request.user
-    profile_key = f'user_profile:{user.id}'
-    stats_key = f'user_appointment_stats:{user.id}'
 
-    # Fetch Profile
-    profile = cache.get(profile_key)
+    profile_cache_key = f"user_profile:{user.id}"
+    stats_cache_key = f"user_appointment_stats:{user.id}"
+
+    # =========================
+    # PROFILE (cached)
+    # =========================
+    profile = cache.get(profile_cache_key)
     if not profile:
         profile, _ = UserProfile.objects.get_or_create(user=user)
-        cache.set(profile_key, profile, 600)
+        cache.set(profile_cache_key, profile, 600)
 
-    if request.method == 'POST':
-        form = UserProfileForm(request.POST, request.FILES, instance=profile)
+    # =========================
+    # UPDATE PROFILE
+    # =========================
+    if request.method == "POST":
+        form = UserProfileForm(
+            request.POST,
+            request.FILES,
+            instance=profile
+        )
         if form.is_valid():
             form.save()
             invalidate_user_cache(user.id)
-            messages.success(request, "Profile updated!")
-            return redirect('user_profile')
+            messages.success(request, "Profile updated successfully.")
+            return redirect("user_profile")
     else:
         form = UserProfileForm(instance=profile)
 
-    # Stats
-    stats = cache.get(stats_key)
+    # =========================
+    # APPOINTMENT STATS (cached)
+    # =========================
+    stats = cache.get(stats_cache_key)
     if not stats:
         stats = Appointment.objects.with_counts_by_status(user.id)
-        cache.set(stats_key, stats, 600)
+        cache.set(stats_cache_key, stats, 600)
 
-    # Lists
-    appointments = Appointment.objects.filter(user=user).select_related('doctor', 'user').order_by('-date')
-    paginator = Paginator(appointments, 10)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    # =========================
+    # APPOINTMENTS (paginated)
+    # =========================
+    appointments_qs = (
+        Appointment.objects
+        .filter(user=user)
+        .select_related("doctor")
+        .order_by("-date", "-created_at")
+    )
+
+    paginator = Paginator(appointments_qs, 10)
+    page_number = request.GET.get("page")
+    appointments_page = paginator.get_page(page_number)
+
+    # =========================
+    # CONTACT MESSAGES
+    # =========================
     contacts = Contact.objects.recent_for_user(user.id)
 
+    # =========================
+    # CONTEXT
+    # =========================
     context = {
         "form": form,
         "profile": profile,
-        "appointments": page_obj,
+        "appointments": appointments_page,
         "contacts": contacts,
-        "total_appointments": stats.get('total', 0),
-        "pending_appointments": stats.get('pending', 0),
-        "completed_appointments": stats.get('completed', 0),
+
+        # Stats (safe defaults)
+        "total_appointments": stats.get("total", 0),
+        "pending_appointments": stats.get("pending", 0),
+        "completed_appointments": stats.get("completed", 0),
     }
+
     return render(request, "profile.html", context)
-
-
-
-
 
 
 
@@ -608,7 +632,7 @@ class CustomPasswordResetView(PasswordResetView):
         email = form.cleaned_data["email"]
         users = User.objects.filter(email__iexact=email)
 
-        # Security best practice: always show success
+        # 🔐 Enumeration-safe message
         messages.success(
             self.request,
             "If this email exists, a password reset link has been sent."
@@ -624,11 +648,59 @@ class CustomPasswordResetView(PasswordResetView):
                 f"{reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})}"
             )
 
-            # 🚀 Async email
+            name = user.first_name or user.get_username() or "User"
+
             send_password_reset_email_task.delay(
                 email=user.email,
                 reset_link=reset_link,
-                username=user.get_username()
+                username=name
             )
 
         return HttpResponseRedirect(self.success_url)
+
+
+
+
+# =============================================
+# ADD THIS CLASS to views.py
+# Place it right after CustomPasswordResetView
+# =============================================
+
+from django.contrib.auth.views import PasswordResetConfirmView
+from django.urls import reverse_lazy
+
+class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    """
+    Overrides Django's PasswordResetConfirmView so that after the user
+    successfully sets their new password we queue an async confirmation email.
+
+    Django's stock flow:
+        1. GET  → validates uid + token, renders the form (or an invalid-link page)
+        2. POST → validates the new password, calls reset_password() which calls
+                  user.set_password() + user.save(), then redirects to success_url.
+
+    We override form_valid() because that is the single method called ONLY when
+    the new password has already been persisted to the database.  At that point
+    self.user is guaranteed to be the freshly-updated User instance.
+    """
+
+    template_name = "password_reset_confirm.html"
+    success_url = reverse_lazy("password_reset_complete")
+
+    def form_valid(self, form):
+        """
+        Called by Django after SetPasswordForm.save() has already run
+        (i.e. the password is already hashed & written to the DB).
+        We grab the user from the form and fire the async email task.
+        """
+        # The user whose password was just changed – set by Django internals
+        user = form.user  # This is the resolved user from the uid in the URL
+
+        # Queue the success email — runs outside this request/response cycle
+        send_password_reset_success_email_task.delay(
+            email=user.email,
+            username=user.first_name or user.get_username() or "User",
+        )
+
+        # Let Django finish its normal redirect to success_url
+        return super().form_valid(form)

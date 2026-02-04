@@ -303,3 +303,32 @@ update readme
 
 
 <!--  addded  pormethus too check  health  permormance metrices  -->
+
+
+
+
+OroShine — Complete Password Reset Flow
+How It Works (End-to-End)
+User clicks "Forgot Password"
+        │
+        ▼
+┌─────────────────────────┐
+│  /password-reset/        │  ← CustomPasswordResetView (already exists)
+│  User enters email       │    Builds token + uid, queues email task
+└────────────┬────────────┘
+             │ on_commit → send_password_reset_email_task.delay(...)
+             ▼
+┌─────────────────────────┐
+│  /password-reset/done/   │  ← "Check your inbox" page
+└────────────┬────────────┘
+             │ User clicks link in email
+             ▼
+┌──────────────────────────────────────┐
+│  /password-reset-confirm/<uid>/<tok>/ │  ← CustomPasswordResetConfirmView
+│  User enters + confirms new password  │    On success → queues success-email task
+└────────────────┬─────────────────────┘
+                 │ on success → send_password_reset_success_email_task.delay(...)
+                 ▼
+┌──────────────────────────┐
+│  /password-reset-complete/ │  ← "Password changed!" page
+└──────────────────────────┘

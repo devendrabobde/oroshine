@@ -1,12 +1,15 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import UserProfile,Appointment,TIME_SLOTS,Doctor
+from .models import UserProfile,Appointment,TIME_SLOTS,Doctor,Service
 from .services_cache import get_service_tuples
 from PIL import Image
 from io import BytesIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import sys
+from django.utils import timezone
+from datetime import timedelta
+
 
 
 class NewUserForm(UserCreationForm):
@@ -85,7 +88,7 @@ class UserProfileForm(forms.ModelForm):
             }),
             'allergies': forms.Textarea(attrs={
                 'class': 'form-control', 
-                'rows': 2, 
+                'rows': 3, 
                 'placeholder': 'List any allergies...'
             }),
         }
@@ -161,20 +164,197 @@ class UserProfileForm(forms.ModelForm):
         return profile
 
 
+
+
+
+class ServiceForm(forms.ModelForm):
+    """
+    Admin form for managing services.
+    Can be used in Django admin or custom views.
+    """
+    
+    class Meta:
+        model = Service
+        fields = [
+            'name', 'code', 'description', 'price', 'duration_minutes',
+            'display_order', 'icon', 'color', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., root_canal'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3
+            }),
+            'price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'duration_minutes': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '15',
+                'max': '240'
+            }),
+            'display_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0'
+            }),
+            'icon': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'fa-tooth'
+            }),
+            'color': forms.TextInput(attrs={
+                'class': 'form-control',
+                'type': 'color'
+            }),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+    
+    def clean_code(self):
+        """Ensure code is unique and slug-friendly"""
+        code = self.cleaned_data.get('code')
+        if code:
+            code = code.lower().replace(' ', '_')
+        return code
+
+
+
+
+
+
+
 class AppointmentForm(forms.ModelForm):
+    """
+    Appointment form with dynamic Service dropdown.
+    Services are loaded from database instead of hardcoded choices.
+    """
+    
+    # Override service field to use ForeignKey instead of CharField
+    service = forms.ModelChoiceField(
+        queryset=Service.objects.none(),  # Will be set in __init__
+        empty_label="Select a Service",
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'required': True,
+        }),
+        help_text="Choose the dental service you need"
+    )
+    
+    doctor = forms.ModelChoiceField(
+        queryset=Doctor.objects.none(),  # Will be set in __init__
+        empty_label="Select a Doctor",
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'required': True,
+        })
+    )
+    
+    date = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date',
+            'min': timezone.now().date().isoformat(),
+            'max': (timezone.now().date() + timedelta(days=365)).isoformat(),
+        })
+    )
+    
+    time = forms.ChoiceField(
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'required': True,
+        })
+    )
+    
     class Meta:
         model = Appointment
-        fields = [
-            'service',
-            'doctor',
-            'name',
-            'email',
-            'phone',
-            'date',
-            'time',
-            'message'
-        ]
-
+        fields = ['service', 'doctor', 'name', 'email', 'phone', 'date', 'time', 'message']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Your Full Name'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'your@email.com'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+91XXXXXXXXXX'}),
+            'message': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Any special requirements or notes...'
+            }),
+        }
+    
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        
+        # Set queryset for services (only active services)
+        self.fields['service'].queryset = Service.cached_active_services()
+        
+        # Set queryset for doctors (only active doctors)
         self.fields['doctor'].queryset = Doctor.cached_active_doctors()
+        
+        # Pre-fill user data if available
+        if user and user.is_authenticated:
+            self.fields['name'].initial = user.get_full_name() or user.username
+            self.fields['email'].initial = user.email
+            
+            # Try to get phone from profile
+            try:
+                profile = user.profile
+                if profile.phone:
+                    self.fields['phone'].initial = profile.phone
+            except:
+                pass
+        
+        # Set time choices from TIME_SLOTS in models
+        from .models import TIME_SLOTS
+        self.fields['time'].choices = [('', 'Select Time')] + list(TIME_SLOTS)
+    
+    def clean_date(self):
+        """Validate appointment date"""
+        date = self.cleaned_data.get('date')
+        
+        if date < timezone.now().date():
+            raise ValidationError('Appointment date cannot be in the past')
+        
+        max_date = timezone.now().date() + timedelta(days=365)
+        if date > max_date:
+            raise ValidationError('Cannot book appointments more than 1 year in advance')
+        
+        return date
+    
+    def clean_service(self):
+        """Validate service is active"""
+        service = self.cleaned_data.get('service')
+        
+        if service and not service.is_active:
+            raise ValidationError('This service is no longer available')
+        
+        return service
+    
+    def clean(self):
+        """Cross-field validation"""
+        cleaned_data = super().clean()
+        doctor = cleaned_data.get('doctor')
+        date = cleaned_data.get('date')
+        time = cleaned_data.get('time')
+        
+        # Check for double booking
+        if doctor and date and time:
+            existing = Appointment.objects.filter(
+                doctor=doctor,
+                date=date,
+                time=time,
+                status__in=['pending', 'confirmed']
+            )
+            
+            # Exclude current appointment if editing
+            if self.instance and self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            
+            if existing.exists():
+                raise ValidationError(
+                    f'This time slot is already booked. Please choose another time.'
+                )
+        
+        return cleaned_data
