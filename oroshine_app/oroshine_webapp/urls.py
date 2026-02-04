@@ -2,7 +2,7 @@ from django.urls import path, include, reverse_lazy
 from django.contrib.auth import views as auth_views
 
 from . import views
-from .views import CustomPasswordResetView
+from .views import CustomPasswordResetView, CustomPasswordResetConfirmView
 
 
 urlpatterns = [
@@ -38,7 +38,7 @@ urlpatterns = [
     # ==========================================
     # PASSWORD RESET (EMAIL FLOW – LOGGED OUT)
     # ==========================================
-    # 1. Enter email
+    # 1. Enter email → CustomPasswordResetView builds token, queues reset-link email
     path(
         "password-reset/",
         CustomPasswordResetView.as_view(
@@ -47,7 +47,7 @@ urlpatterns = [
         name="password_reset",
     ),
 
-    # 2. Email sent page
+    # 2. "Check your inbox" confirmation page
     path(
         "password-reset/done/",
         auth_views.PasswordResetDoneView.as_view(
@@ -57,19 +57,19 @@ urlpatterns = [
     ),
 
     # 3. Link from email → set new password
+    #    ⚡ Changed: stock PasswordResetConfirmView → CustomPasswordResetConfirmView
+    #       so we can fire the success-email task after the password is saved.
     path(
         "password-reset-confirm/<uidb64>/<token>/",
-        auth_views.PasswordResetConfirmView.as_view(
-            template_name="password_reset_confirm.html"
-        ),
+        CustomPasswordResetConfirmView.as_view(),   # template_name & success_url set on the class
         name="password_reset_confirm",
     ),
 
-    # 4. Password reset success
+    # 4. Password changed successfully landing page
     path(
         "password-reset-complete/",
         auth_views.PasswordResetCompleteView.as_view(
-            template_name="password_reset_complete.html"
+            template_name="emails/password_reset_complete.html"
         ),
         name="password_reset_complete",
     ),
@@ -99,4 +99,5 @@ urlpatterns = [
     # ==========================================
     path("api/check-slots/", views.check_slots_ajax, name="check_slots_ajax"),
     path("api/check-availability/", views.check_availability, name="check_availability"),
+    path("cancel-appointment/<str:appointment_id>/", views.cancel_appointment, name="cancel_appointment"),
 ]

@@ -85,14 +85,48 @@
             padding: 8px 0;
         }
 
-        .alert-success {
-            background-color: #d1f2eb;
-            border-color: #c3e6cb;
-            color: #155724;
+        .alert {
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 
     <div class="container py-5">
+        <!-- Alert Messages -->
+        {% if messages %}
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 11; width: 400px;">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-lg" role="alert">
+                <div class="d-flex align-items-center">
+                    {% if message.tags == 'success' %}
+                    <i class="bi bi-check-circle-fill me-2" style="font-size: 1.5rem;"></i>
+                    {% elif message.tags == 'error' or message.tags == 'danger' %}
+                    <i class="bi bi-exclamation-triangle-fill me-2" style="font-size: 1.5rem;"></i>
+                    {% elif message.tags == 'warning' %}
+                    <i class="bi bi-exclamation-circle-fill me-2" style="font-size: 1.5rem;"></i>
+                    {% else %}
+                    <i class="bi bi-info-circle-fill me-2" style="font-size: 1.5rem;"></i>
+                    {% endif %}
+                    <div>
+                        <strong>{{ message }}</strong>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- PAGE TITLE -->
         <div class="text-center mb-4">
             <h2 class="fw-bold text-primary">My Profile</h2>
@@ -149,14 +183,50 @@
 
                         <div class="row mt-3">
                             <div class="col-md-6">
-                                <p><i class="bi bi-telephone"></i> <strong>Phone:</strong> {{ profile.phone|default:"Not added" }}</p>
-                                <p><i class="bi bi-calendar"></i> <strong>Date of Birth:</strong> {{ profile.date_of_birth|default_if_none:"Not added"|date:"M d, Y" }}</p>
-                                <p><i class="bi bi-geo-alt"></i> <strong>City:</strong> {{ profile.city|default:"Not added" }}</p>
+                                <p><i class="bi bi-telephone"></i> <strong>Phone:</strong> 
+                                    {% if profile.phone %}
+                                        {{ profile.phone }}
+                                    {% else %}
+                                        <span class="text-muted">Not added</span>
+                                    {% endif %}
+                                </p>
+                                <p><i class="bi bi-calendar"></i> <strong>Date of Birth:</strong> 
+                                    {% if profile.date_of_birth %}
+                                        {{ profile.date_of_birth|date:"M d, Y" }}
+                                    {% else %}
+                                        <span class="text-muted">Not added</span>
+                                    {% endif %}
+                                </p>
+                                <p><i class="bi bi-geo-alt"></i> <strong>City:</strong> 
+                                    {% if profile.city %}
+                                        {{ profile.city }}
+                                    {% else %}
+                                        <span class="text-muted">Not added</span>
+                                    {% endif %}
+                                </p>
                             </div>
                             <div class="col-md-6">
-                                <p><i class="bi bi-map"></i> <strong>State:</strong> {{ profile.state|default:"Not added" }}</p>
-                                <p><i class="bi bi-mailbox"></i> <strong>Zip Code:</strong> {{ profile.zip_code|default:"Not added" }}</p>
-                                <p><i class="bi bi-clock"></i> <strong>Member Since:</strong> {{ profile.created_at|default_if_none:"-"|date:"M Y" }}</p>
+                                <p><i class="bi bi-map"></i> <strong>State:</strong> 
+                                    {% if profile.state %}
+                                        {{ profile.state }}
+                                    {% else %}
+                                        <span class="text-muted">Not added</span>
+                                    {% endif %}
+                                </p>
+                                <p><i class="bi bi-mailbox"></i> <strong>Zip Code:</strong> 
+                                    {% if profile.zip_code %}
+                                        {{ profile.zip_code }}
+                                    {% else %}
+                                        <span class="text-muted">Not added</span>
+                                    {% endif %}
+                                </p>
+                                <p><i class="bi bi-clock"></i> <strong>Member Since:</strong> 
+                                    {% if profile.created_at %}
+                                        {{ profile.created_at|date:"M Y" }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </p>
                             </div>
                         </div>
 
@@ -210,25 +280,34 @@
                                 <th><i class="bi bi-clock"></i> Time</th>
                                 <th><i class="bi bi-person-badge"></i> Doctor</th>
                                 <th><i class="bi bi-info-circle"></i> Status</th>
+                                <th><i class="bi bi-gear"></i> Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for a in appointments %}
                             <tr>
-                                <td>{{ a.get_service_display|default:"-" }}</td>
-                                <td>{{ a.date|default_if_none:"-"|date:"M d, Y" }}</td>
-                                <td>{{ a.get_time_display|default:"-" }}</td>
-                                <td>{{ a.doctor.full_name|default:"-" }}</td>
+                                <td>{{ a.get_service_display }}</td>
+                                <td>{{ a.date|date:"M d, Y" }}</td>
+                                <td>{{ a.get_time_display }}</td>
+                                <td>{{ a.doctor.full_name }}</td>
                                 <td>
                                     <span class="badge 
                                         {% if a.status == 'completed' %}bg-success
                                         {% elif a.status == 'pending' %}bg-warning text-dark
                                         {% elif a.status == 'cancelled' %}bg-danger
                                         {% elif a.status == 'confirmed' %}bg-info
-                                        {% else %}bg-secondary{% endif %}
-                                    ">
-                                        {{ a.status|capfirst|default:"-" }}
+                                        {% endif %}">
+                                        {{ a.status|capfirst }}
                                     </span>
+                                </td>
+                                <td>
+                                    {% if a.status == 'pending' or a.status == 'confirmed' %}
+                                    <button class="btn btn-sm btn-outline-danger cancel-btn" data-id="{{ a.ulid }}">
+                                        <i class="bi bi-x-circle"></i> Cancel
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -257,9 +336,28 @@
                     <li class="list-group-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1"><i class="bi bi-envelope"></i> {{ c.subject|default:"-" }}</h6>
-                                <p class="mb-1 text-muted">{{ c.message|truncatechars:150|default:"-" }}</p>
-                                <small class="text-muted"><i class="bi bi-clock"></i> {{ c.created_at|naturaltime|default:"-" }}</small>
+                                <h6 class="mb-1"><i class="bi bi-envelope"></i> 
+                                    {% if c.subject %}
+                                        {{ c.subject }}
+                                    {% else %}
+                                        <span class="text-muted">No Subject</span>
+                                    {% endif %}
+                                </h6>
+                                <p class="mb-1 text-muted">
+                                    {% if c.message %}
+                                        {{ c.message|truncatechars:150 }}
+                                    {% else %}
+                                        <span class="text-muted">No message</span>
+                                    {% endif %}
+                                </p>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock"></i> 
+                                    {% if c.created_at %}
+                                        {{ c.created_at|naturaltime }}
+                                    {% else %}
+                                        <span>-</span>
+                                    {% endif %}
+                                </small>
                             </div>
                             <span class="badge {% if c.is_resolved %}bg-success{% else %}bg-warning text-dark{% endif %}">
                                 {% if c.is_resolved %}Resolved{% else %}Pending{% endif %}
@@ -290,8 +388,11 @@
                 <form method="POST" enctype="multipart/form-data" id="profileForm">
                     {% csrf_token %}
                     <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="updateModalLabel"><i class="bi bi-pencil-square"></i> Update Profile</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title" id="updateModalLabel">
+                            <i class="bi bi-pencil-square"></i> Update Profile
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <!-- Current Avatar Preview -->
@@ -341,4 +442,137 @@
     </div>
 
 </body>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Function to show Bootstrap alert
+function showAlert(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show shadow-lg`;
+    alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; animation: slideDown 0.3s ease-out;';
+    alertDiv.setAttribute('role', 'alert');
+    
+    const icon = type === 'success' ? 'check-circle-fill' : 
+                 type === 'danger' ? 'exclamation-triangle-fill' : 
+                 type === 'warning' ? 'exclamation-circle-fill' : 'info-circle-fill';
+    
+    alertDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-${icon} me-2" style="font-size: 1.5rem;"></i>
+            <div><strong>${message}</strong></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        alertDiv.classList.remove('show');
+        setTimeout(() => alertDiv.remove(), 150);
+    }, 5000);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Auto-dismiss existing alerts after 5 seconds
+    document.querySelectorAll('.alert').forEach(alert => {
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+
+    // Cancel appointment functionality
+    document.querySelectorAll(".cancel-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+            const apptId = this.dataset.id;
+            const button = this;
+
+            // Create custom confirmation modal instead of browser alert
+            const confirmModal = document.createElement('div');
+            confirmModal.className = 'modal fade';
+            confirmModal.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                Confirm Cancellation
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-0">Are you sure you want to cancel this appointment?</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle"></i> No, Keep It
+                            </button>
+                            <button type="button" class="btn btn-danger" id="confirmCancelBtn">
+                                <i class="bi bi-check-circle"></i> Yes, Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(confirmModal);
+            const modal = new bootstrap.Modal(confirmModal);
+            modal.show();
+
+            // Handle confirmation
+            confirmModal.querySelector('#confirmCancelBtn').addEventListener('click', function() {
+                modal.hide();
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Cancelling...';
+
+                fetch(`/cancel-appointment/${apptId}/`, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        showAlert("Appointment cancelled successfully!", "success");
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showAlert(data.message || "Failed to cancel appointment", "danger");
+                        button.disabled = false;
+                        button.innerHTML = '<i class="bi bi-x-circle"></i> Cancel';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert("Something went wrong. Please try again.", "danger");
+                    button.disabled = false;
+                    button.innerHTML = '<i class="bi bi-x-circle"></i> Cancel';
+                });
+            });
+
+            // Clean up modal after it's hidden
+            confirmModal.addEventListener('hidden.bs.modal', function() {
+                confirmModal.remove();
+            });
+        });
+    });
+});
+</script>
+
 </html>

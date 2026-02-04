@@ -208,9 +208,9 @@ CELERY_TASK_EAGER_PROPAGATES = False
 
 # Define the queues (You already have this, just double-checking)
 CELERY_TASK_QUEUES = (
-    Queue('default', Exchange('default'), routing_key='default'),
-    Queue('email', Exchange('email'), routing_key='email'),
     Queue('calendar', Exchange('calendar'), routing_key='calendar'),
+    Queue('email', Exchange('email'), routing_key='email'),
+    Queue('default', Exchange('default'), routing_key='default'),
 )
 
 # 🚀 UPDATE THIS SECTION
@@ -398,7 +398,7 @@ ADMIN_EMAIL = config('ADMIN_EMAIL', default=EMAIL_HOST_USER)
 # GOOGLE CALENDAR API CONFIGURATION
 # GOOGLE_CALENDAR_ID = config('GOOGLE_CALENDAR_ID', default='primary')
 
-GOOGLE_CALENDAR_ID="37d2bdca1b71cfa34c3af9d25354088a96085da7cbd5c6853e8cce116dfc47c0@group.calendar.google.com"
+GOOGLE_CALENDAR_ID= config("GOOGLE_CALENDAR_ID")
 
 GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
